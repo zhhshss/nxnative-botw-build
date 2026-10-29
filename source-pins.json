@@ -1,0 +1,13 @@
+{
+  "upstream": {
+    "repository": "seedds/nxnative",
+    "commit": "32b12b4de075f13fa8658b980f164c992e6136a1"
+  },
+  "windows_fork": {
+    "repository": "xbunax/nxnative",
+    "commit": "d1ba3e97876da86ff616c6d8e8d684b968fb8c5d"
+  },
+  "game_profile": "01007EF00011E000",
+  "plugin_version": "0.3.1",
+  "shader_chain": "2fcec1622a5f"
+}

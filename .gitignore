@@ -1,0 +1,14 @@
+upstream/
+fork/
+stage/
+build/
+dist/
+__pycache__/
+*.pyc
+*.ipa
+*.nsp
+*.xci
+*.nca
+prod.keys
+romfs/
+romfs.img
