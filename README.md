@@ -2,6 +2,12 @@
 
 Public source-only build orchestration for a pinned nxnative host and the NXKeyboard plugin. It combines the specified seedds upstream revision with the xbunax Windows build support and Objective-C launcher. GitHub Actions compiles ARM64 iOS host objects without Nintendo game files, keys, RomFS, shaders or saves.
 
+## Verified cloud build
+
+[Actions run 40924302938](https://github.com/zhhshss/nxnative-botw-build/actions/runs/40924302938) completed successfully on 2026-10-29: 181/181 host sources compiled, the plugin compiled and its signature pages verified, and input regression checks passed. The host object ZIP is approximately 4.6 MB. This is a compiler result, not device validation or a finished game update.
+
+`resource-requirements.json` lists the source containers needed for the next shader build. Their bytes are **not** in this repository. The installed app's game data stays private and is not an Actions input. Native aspect and full HUD adaptation still need game resource inspection.
+
 ## Current scope
 
 - The Windows job produces host object files and a relocatable, hashed inventory for later local linking.
