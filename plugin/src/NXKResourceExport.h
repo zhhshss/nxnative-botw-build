@@ -309,8 +309,9 @@ static bool NXKResourceZipProgress(void *context,uint64_t fileBytes,uint64_t fil
             self->_rootFD=rootFD; rootFD=-1;
         }
         if (rootFD>=0) close(rootFD);
-        self.busy=NO;
-        dispatch_async(dispatch_get_main_queue(),^{ if (completion) completion(summary,error); });
+        /* Keep the operation claimed until its preview reaches the UI; a new
+         * inspection must not replace the snapshot behind an older preview. */
+        dispatch_async(dispatch_get_main_queue(),^{ self.busy=NO; if (completion) completion(summary,error); });
     }});
 }
 - (void)exportWithCompletion:(void(^)(NSURL *,NSError *))completion {
@@ -431,9 +432,8 @@ static bool NXKResourceZipProgress(void *context,uint64_t fileBytes,uint64_t fil
         if (!error) self.progress=1;
         else self.progress=0;
         if (error && error.code==12) [self discardInspection];
-        self.busy=NO;
         NSURL *result=error?nil:[NSURL fileURLWithPath:archivePath];
-        dispatch_async(dispatch_get_main_queue(),^{ if (completion) completion(result,error); });
+        dispatch_async(dispatch_get_main_queue(),^{ self.busy=NO; if (completion) completion(result,error); });
     }});
 }
 @end
