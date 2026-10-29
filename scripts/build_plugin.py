@@ -31,7 +31,7 @@ def main():
                '-platform_version', 'ios', '14.0', '27.0', '-syslibroot', sdk,
                '-F', str(Path(sdk) / 'System/Library/SubFrameworks'),
                '-install_name', '@rpath/NXKeyboard.dylib', '-adhoc_codesign',
-               '-dead_strip', '-o', str(binary), str(obj), '-lSystem', '-lobjc']
+               '-dead_strip', '-o', str(binary), str(obj), '-lSystem', '-lobjc', '-lz']
     for framework in ('UIKit', 'Foundation', 'GameController', 'CoreGraphics', 'QuartzCore'):
         command += ['-framework', framework]
     subprocess.run(command, check=True)
@@ -44,21 +44,23 @@ def main():
         raise ValueError('Plugin is not MH_DYLIB')
     signature = next(raw for cmd, raw in commands if cmd == 0x1d)
     pages = verify.audit_signature(data, signature)
-    report = {'version': '0.3.1', 'sha256': hashlib.sha256(data).hexdigest(),
+    report = {'version': '0.3.2', 'sha256': hashlib.sha256(data).hexdigest(),
               'signature_pages_verified': pages, 'game_files_used': False,
               'target': 'Existing supported old DmIOS only; new host adaptation pending',
               'runtime_tested': False}
     (out / 'validation.json').write_text(json.dumps(report, indent=2) + '\n')
     (out / 'README.txt').write_text(
-        'NXKeyboard 0.3.1: removes the on-screen swipe-to-look hint.\n'
+        'NXKeyboard 0.3.2: resource inventory/export for the existing installed game.\n'
         'This build targets the previously supported DmIOS, not the new host objects.\n'
         'Replace the old plugin, sign through LiveContainer and restart the game.\n'
+        'Long-press the overlay, open Build resources, inspect size, then export if desired.\n'
+        'The exporter never uploads files; save/share the resulting ZIP yourself.\n'
         'No device test was performed by this build.\n')
     names = ['NXKeyboard.dylib', 'validation.json', 'README.txt']
     (out / 'SHA256SUMS.txt').write_text(''.join(
         hashlib.sha256((out / name).read_bytes()).hexdigest() + '  ' + name + '\n'
         for name in names))
-    with zipfile.ZipFile(out / 'NXKeyboard-0.3.1-LiveContainer.zip', 'x',
+    with zipfile.ZipFile(out / 'NXKeyboard-0.3.2-LiveContainer.zip', 'x',
                          compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name in names + ['SHA256SUMS.txt']:
             archive.write(out / name, name)

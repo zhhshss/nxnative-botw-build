@@ -36,6 +36,8 @@ jobs:
           done
           python3 -m compileall -q scripts
           python3 tests/test_incremental_update.py
+          gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined plugin/tests/zip_test.c -lz -o "$RUNNER_TEMP/tests/zip"
+          "$RUNNER_TEMP/tests/zip"
 
   compile:
     runs-on: windows-latest
@@ -83,8 +85,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: NXKeyboard-0.3.1
-          path: ${{ runner.temp }}/plugin/NXKeyboard-0.3.1-LiveContainer.zip
+          name: NXKeyboard-0.3.2
+          path: ${{ runner.temp }}/plugin/NXKeyboard-0.3.2-LiveContainer.zip
           if-no-files-found: warn
           retention-days: 14
       - name: Upload compile logs on failure

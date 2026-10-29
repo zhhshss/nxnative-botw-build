@@ -15,6 +15,7 @@
 #include "NXKStallCapture.h"
 #include "NXKDisplay.h"
 #include "NXKTouchView.h"
+#include "NXKResourceExport.h"
 
 static NSString *const NXKNames[NXK_ACTION_COUNT]={
     @"左摇杆 ←",@"左摇杆 →",@"左摇杆 ↑",@"左摇杆 ↓",
@@ -81,6 +82,7 @@ static __weak NXKManager *NXKActiveManager;
 @property(nonatomic,strong) NSMutableArray<NSDictionary *> *performanceSamples;
 @property(nonatomic,strong) NSDictionary *lastGameplayPointer;
 @property(nonatomic,strong) NXKStallCapture *stallCapture;
+@property(nonatomic,strong) NXKResourceExporter *resourceExporter;
 @property(nonatomic,strong) UIAlertController *captureAlert;
 @property(nonatomic,weak) NXKSettings *settings;
 @property(nonatomic,weak) UIView *touchPad;
@@ -251,6 +253,7 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
 @implementation NXKManager
 - (void)start {
     self.captureAction=-1;
+    self.resourceExporter=[NXKResourceExporter new];
     NXKActiveManager=self;
     self.pointerRoots=[NSHashTable weakObjectsHashTable];
     self.performanceSamples=[NSMutableArray array];
@@ -331,7 +334,7 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
     self.inputTimerInterval=0.25;
     [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
     [self tick:nil];
-    NSLog(@"[NXKeyboard] v0.3.1 loaded; waiting for the matching DmIOS image");
+    NSLog(@"[NXKeyboard] v0.3.2 loaded; waiting for the matching DmIOS image");
 }
 - (void)save {
     NSMutableArray *bindings=[NSMutableArray array];
@@ -876,7 +879,7 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
     for (NSString *key in @[@"DM_FPS_TARGET",@"DM_FPS_HOLD",@"DM_SLOWFRAME",@"DM_SPIN_POLL",@"DM_RENDER_SCALE",@"DM_PRESENT_LINK",@"DM_PRESENT_LATENCY",@"DM_NVN_ENC_THREAD",@"DM_NVN_VBUF_CACHE",@"DM_NVN_UB_DEFER",@"DM_NVN_UB_PARTIAL",@"DM_NVN_UB_LAZY",@"DM_NVN_LAZY_CLEAR",@"DM_NVN_TBDR"]) {
         const char *value=getenv(key.UTF8String); settings[key]=value?@(value):@"upstream default";
     }
-    NSDictionary *report=@{@"plugin":@"NXKeyboard 0.3.1",@"systemVersion":UIDevice.currentDevice.systemVersion,@"hostBundleIdentifier":NSBundle.mainBundle.bundleIdentifier?:@"unknown",@"targetMatched":@(self.targetReady),@"renderProbeMatched":@(renderProbe.ready),@"pointerNow":[self pointerSnapshot],@"lastGameplayPointer":self.lastGameplayPointer?:@{},@"secondsSinceGameplaySnapshot":@(self.lastGameplayDiagnostics?CACurrentMediaTime()-self.lastGameplayDiagnostics:-1),@"environment":settings,@"inputPollingIntervalSeconds":@(self.inputTimerInterval),@"recentGameplaySamples":self.performanceSamples,@"stallCapture":[self.stallCapture report],@"touch":self.touchView?[self.touchView diagnostics]:@{},@"enhancedTouch":@(self.enhancedTouch),@"touchIntegrationReady":@(self.touchIntegrationReady),@"display":[self.display diagnostics],@"displayMode":@(self.display.mode),@"displayHooksReady":@(self.displayHooksReady),@"displayRect":NSStringFromCGRect([self.display displayRectInView:self.touchPad])};
+    NSDictionary *report=@{@"plugin":@"NXKeyboard 0.3.2",@"systemVersion":UIDevice.currentDevice.systemVersion,@"hostBundleIdentifier":NSBundle.mainBundle.bundleIdentifier?:@"unknown",@"targetMatched":@(self.targetReady),@"renderProbeMatched":@(renderProbe.ready),@"pointerNow":[self pointerSnapshot],@"lastGameplayPointer":self.lastGameplayPointer?:@{},@"secondsSinceGameplaySnapshot":@(self.lastGameplayDiagnostics?CACurrentMediaTime()-self.lastGameplayDiagnostics:-1),@"environment":settings,@"inputPollingIntervalSeconds":@(self.inputTimerInterval),@"recentGameplaySamples":self.performanceSamples,@"stallCapture":[self.stallCapture report],@"touch":self.touchView?[self.touchView diagnostics]:@{},@"enhancedTouch":@(self.enhancedTouch),@"touchIntegrationReady":@(self.touchIntegrationReady),@"display":[self.display diagnostics],@"displayMode":@(self.display.mode),@"displayHooksReady":@(self.displayHooksReady),@"displayRect":NSStringFromCGRect([self.display displayRectInView:self.touchPad])};
     NSData *json=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
     return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding]?:@"Unable to create diagnostics";
 }
@@ -1059,15 +1062,16 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
     }];
 }
 - (void)done { [self closeAndCapture:NO]; }
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { (void)tableView; return 5; }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { (void)tableView; return section==1?NXK_ACTION_COUNT:(section==0?9:(section==2?6:4)); }
-- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section { (void)tableView; return section==0?@"显示与触控":(section==1?@"点选动作后绑定键盘或鼠标":(section==2?@"鼠标":(section==3?@"状态":@"快速恢复"))); }
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { (void)tableView; return 6; }
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { (void)tableView; return section==5?1:(section==1?NXK_ACTION_COUNT:(section==0?9:(section==2?6:4))); }
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section { (void)tableView; return section==0?@"显示与触控":(section==1?@"点选动作后绑定键盘或鼠标":(section==2?@"鼠标":(section==3?@"状态":(section==4?@"快速恢复":@"构建资源")))); }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
     if (section==1) return @"覆盖全部游戏内 Pro Controller 操作。未绑定项不会发送输入；同一键绑定多项时会同时触发。键盘和触屏均可使用。";
     if (section==2) return @"Esc 默认切换鼠标游戏模式；退出游戏模式后可以用系统指针操作菜单。快捷键可在上方改绑。系统可能不允许捕获指针，这里显示进入设置前的游戏状态。鼠标独立调整灵敏度。";
-    if (section==3) return @"NXKeyboard 0.3.1 · 卡顿采集默认关闭。手动开启后最多运行 60 秒、记录 8 次；重新打开设置或进入后台即停止。采集会短暂读取线程状态，可能影响被采集的帧，仅用于排查。完成后复制诊断或导出 log.txt。";
+    if (section==3) return @"NXKeyboard 0.3.2 · 卡顿采集默认关闭。手动开启后最多运行 60 秒、记录 8 次；重新打开设置或进入后台即停止。采集会短暂读取线程状态，可能影响被采集的帧，仅用于排查。完成后复制诊断或导出 log.txt。";
     if (section==4) return @"恢复只调整本插件的显示和操作。正在使用的主程序等待修复继续保留。";
+    if (section==5) return @"先显示所需文件数量和大小，再由你选择导出。只包含新版着色器和界面适配所需的游戏资源，不读取存档或密钥；不会自动上传。";
     return @"增强触控可单独使用，无需连接键鼠。左下移动，右侧空白滑动转视角；移动、视角与按键互不抢占。隐藏按键仅隐藏图形。完整铺满保留全部画面，会改变比例；可切换回原比例。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)index {
@@ -1125,10 +1129,15 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
             cell.textLabel.text=m.targetReady?@"游戏版本已匹配":@"游戏版本不匹配";
             cell.detailTextLabel.text=!m.targetReady?@"禁止发送输入":(![m slotAvailable]?@"输入被占用":(m.mouse?(m.keyboard?@"键鼠已连接":@"鼠标已连接"):(m.keyboard?@"键盘已连接":(m.enhancedTouch?@"纯触控":@"原触控"))));
         }
-    } else {
+    } else if (index.section==4) {
         cell.textLabel.text=@[@"清除当前触控状态",@"恢复推荐操作",@"恢复原显示和触控",@"触控适配状态"][index.row];
         if (index.row<3) cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
         else cell.detailTextLabel.text=m.touchIntegrationReady?@"已匹配":@"未匹配";
+    } else {
+        cell.textLabel.text=@"导出构建所需资源";
+        cell.detailTextLabel.text=m.resourceExporter.busy?@"处理中":@"先查看大小";
+        cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+        cell.userInteractionEnabled=!m.resourceExporter.busy;
     }
     return cell;
 }
@@ -1150,8 +1159,62 @@ static BOOL NXKCheckTouchCode(uintptr_t base) {
     else if (sw.tag==4) [m setMouseModeReleased:!sw.on];
     nxk_mouse_clear(&m->mouseMotion); [m save]; [m refresh]; [self.tableView reloadData];
 }
+- (void)showResourceError:(NSError *)error {
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"资源导出未完成" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+- (void)startResourceExport {
+    NXKResourceExporter *exporter=self.manager.resourceExporter;
+    UIAlertController *progress=[UIAlertController alertControllerWithTitle:@"正在打包资源" message:@"0%\n请保持游戏在前台。" preferredStyle:UIAlertControllerStyleAlert];
+    [progress addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { (void)action; [exporter cancel]; }]];
+    [self presentViewController:progress animated:YES completion:nil];
+    __weak UIAlertController *weakProgress=progress;
+    NSTimer *timer=[NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer *t) {
+        (void)t; weakProgress.message=[NSString stringWithFormat:@"%.0f%%\n请保持游戏在前台。",exporter.progress*100];
+    }];
+    [exporter exportWithCompletion:^(NSURL *url,NSError *error) {
+        [timer invalidate]; [self.tableView reloadData];
+        void (^complete)(void)=^{
+            if (error) { [self showResourceError:error]; return; }
+            UIActivityViewController *share=[[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
+            share.popoverPresentationController.sourceView=self.view;
+            share.popoverPresentationController.sourceRect=CGRectMake(CGRectGetMidX(self.view.bounds),CGRectGetMidY(self.view.bounds),1,1);
+            [self presentViewController:share animated:YES completion:nil];
+        };
+        if (self.presentedViewController==progress) [progress dismissViewControllerAnimated:YES completion:complete];
+        else complete();
+    }];
+}
+- (void)inspectResources {
+    NXKResourceExporter *exporter=self.manager.resourceExporter;
+    if (exporter.busy) return;
+    self.navigationItem.prompt=@"正在检查资源大小…";
+    [exporter inspectWithBundle:NSBundle.mainBundle completion:^(NSDictionary *summary,NSError *error) {
+        self.navigationItem.prompt=nil; [self.tableView reloadData];
+        if (error) { [self showResourceError:error]; return; }
+        NSString *size=[NSByteCountFormatter stringFromByteCount:[summary[@"totalBytes"] longLongValue] countStyle:NSByteCountFormatterCountStyleFile];
+        NSUInteger missing=[summary[@"missing"] count]+[summary[@"rejected"] count];
+        NSString *message=[NSString stringWithFormat:@"共 %@ 个文件，未压缩大小 %@。压缩后大小取决于内容。\n%@\n导出完成后可保存到文件，再发送压缩包。",summary[@"fileCount"],size,missing?[NSString stringWithFormat:@"有 %lu 个文件未找到或未通过检查，清单会记录。",(unsigned long)missing]:@"所需资源均已找到。"];
+        UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"导出构建资源" message:message preferredStyle:UIAlertControllerStyleAlert];
+        if ([summary[@"canExport"] boolValue]) [alert addAction:[UIAlertAction actionWithTitle:@"导出压缩包" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { (void)a; [self startResourceExport]; }]];
+        else {
+            NSString *reason;
+            if (![summary[@"fileCount"] unsignedIntegerValue]) reason=@"没有找到可导出的资源文件。";
+            else if (![summary[@"withinLimit"] boolValue]) reason=@"本次导出超过 2 GB 或文件数上限，请把这里显示的大小反馈。";
+            else {
+                NSString *needed=[NSByteCountFormatter stringFromByteCount:[summary[@"requiredFreeBytes"] longLongValue] countStyle:NSByteCountFormatterCountStyleFile];
+                reason=[NSString stringWithFormat:@"可用空间不足，需至少 %@ 空闲空间。",needed];
+            }
+            alert.message=[message stringByAppendingFormat:@"\n%@",reason];
+        }
+        [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+    }];
+}
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)index {
     [tableView deselectRowAtIndexPath:index animated:YES];
+    if (index.section==5) { [self inspectResources]; return; }
     if (index.section==4 && index.row<3) {
         NXKManager *m=self.manager; [m clear]; [m resetNativeTouch];
         if (index.row==1) {

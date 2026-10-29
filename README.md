@@ -11,7 +11,7 @@ Public source-only build orchestration for a pinned nxnative host and the NXKeyb
 ## Current scope
 
 - The Windows job produces host object files and a relocatable, hashed inventory for later local linking.
-- The plugin job builds NXKeyboard 0.3.1, including its existing touch/keyboard/mouse behavior and removal of the on-screen camera hint. This plugin still targets the older supported DmIOS binary; it must be re-adapted before use with a newly linked host.
+- The plugin job builds NXKeyboard 0.3.2, including its existing touch/keyboard/mouse behavior, removal of the on-screen camera hint, and opt-in local resource export. This plugin still targets the older supported DmIOS binary; it must be re-adapted before use with a newly linked host.
 - A successful host-object job is a compile check, **not a runnable game or completed update IPA**. Shader generation, original-module rewriting, final linking, plugin target adaptation and device validation remain separate.
 - Native aspect-ratio rendering with an undistorted, complete HUD is not implemented by these builds. Existing view scaling cannot provide that feature.
 
@@ -26,3 +26,7 @@ Trigger **Windows host and plugin** from the Actions tab. The workflow has read-
 ## Licenses
 
 The upstream and Windows fork are MIT-licensed by seedds; their notice is retained in `UPSTREAM-LICENSE`. Their third-party source/license files remain in the staged checkout and the artifact's notices. No Apple SDK or Nintendo content is redistributed in this repository.
+
+## Resource export helper
+
+NXKeyboard 0.3.2 can inspect the listed source resources in the installed app, show their size, and create a local ZIP only after the user selects Export. It does not upload anything. The artifact still targets the old installed DmIOS. The exported resource contents must not be committed to this public repository or uploaded by its public workflows.
