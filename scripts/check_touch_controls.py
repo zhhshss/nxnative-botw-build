@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import subprocess
 import uuid
 
@@ -22,9 +23,19 @@ HOST_TESTS = (
 )
 
 
-def run(command, **kwargs):
+def run(command, timeout=600, **kwargs):
     print('+ ' + ' '.join(map(str, command)), flush=True)
-    return subprocess.run(list(map(str, command)), check=True, **kwargs)
+    # Bound each stage independently so an unresponsive test or first simulator
+    # boot identifies itself in the log instead of consuming the whole CI job.
+    process = subprocess.Popen(list(map(str, command)), start_new_session=True, **kwargs)
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+        raise
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command)
 
 
 def simctl_json(*arguments):
@@ -44,11 +55,13 @@ def check(stage: Path, output: Path):
     run(['make', '-C', stage / 'dm/host/tests', f'GAME={GAME}', f'B={unit}', '-j3', *targets])
     test_environment = dict(os.environ, TMPDIR=str(unit))
     for target in targets:
-        with (output / (target.name + '.log')).open('w') as log:
-            result = subprocess.run([str(target)], stdout=log, stderr=subprocess.STDOUT,
-                                    env=test_environment)
-        print((output / (target.name + '.log')).read_text(errors='replace'), flush=True)
-        result.check_returncode()
+        log_path = output / (target.name + '.log')
+        try:
+            with log_path.open('w') as log:
+                run([target], stdout=log, stderr=subprocess.STDOUT,
+                    env=test_environment, timeout=120)
+        finally:
+            print(log_path.read_text(errors='replace'), flush=True)
     runtimes = [runtime for runtime in simctl_json('list', 'runtimes')['runtimes']
                 if runtime.get('isAvailable') and 'iOS' in runtime['name']
                 and int(runtime['version'].split('.')[0]) >= 26]
@@ -94,7 +107,7 @@ def main():
     args = parser.parse_args()
     try:
         check(args.stage.resolve(), args.output.resolve())
-    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + '\n')
 
 
