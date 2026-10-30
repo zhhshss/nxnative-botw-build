@@ -270,7 +270,11 @@ def apply_upstream_merge(source: Path, stage: Path, lite: bool) -> dict:
     # discovery there so git apply always resolves paths relative to this stage.
     env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(stage.parent))
     for check in (True, False):
-        args = ["git", "apply", "--whitespace=nowarn"]
+        # Git for Windows commonly enables core.autocrlf globally. Applying an
+        # addition outside a repository must still preserve the reviewed LF
+        # bytes; the orchestration checkout's attributes do not cover this stage.
+        args = ["git", "-c", "core.autocrlf=false", "-c", "core.eol=lf",
+                "apply", "--whitespace=nowarn"]
         if check:
             args.append("--check")
         proc = subprocess.run([*args, "--", str(patch_path)], cwd=stage, env=env, capture_output=True)

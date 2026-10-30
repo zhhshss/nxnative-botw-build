@@ -1,6 +1,5 @@
 {
   "source_commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
-  "patch_sha256": "f5d9cc7213241e00f56923a925283eceb2215a10f27030c777bedcdc3cc72ba8",
   "files": [
     {
       "path": "dm/ios/Sources/DmGamepad.m",
@@ -11,6 +10,12 @@
       "path": "dm/ios/tests/ios_look_harness.m",
       "before_sha256": "c18308824b576b7375499798ff243d680ff6a9bf83760b74644fa2210ea6767f",
       "after_sha256": "52b29319dbd4c9f3ee31dc1900e9631ba917e6080a56a0174b47eaa7e4c477e0"
+    },
+    {
+      "path": "dm/host/tests/t_device_motion.c",
+      "before_sha256": "39de888577edb3ae83e11d7c1086b2b9ab2612957ac663a34598d914af93eaa2",
+      "after_sha256": "db80165c3a9c85c55ef7a288abac1c1b359b098ba87fec763655605c3284241b"
     }
-  ]
+  ],
+  "patch_sha256": "34a19f57b0c0da1ed4d13c78fb324154b1ff5682cc676945e8b912e5f2537c87"
 }

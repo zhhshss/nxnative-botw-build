@@ -339,3 +339,18 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      test_priority_and_multitouch(view);
      test_cancel_and_modes(view);
      reset_look(); g_look_enabled = YES;
+diff --git a/dm/host/tests/t_device_motion.c b/dm/host/tests/t_device_motion.c
+--- a/dm/host/tests/t_device_motion.c
++++ b/dm/host/tests/t_device_motion.c
+@@ -16,6 +16,11 @@
+ void guest_clock_read_wait(void) {}
+ int dm_opmode(void) { return 0; }
+ void dm_touch_set(const dm_touch *touches, int n) { (void)touches; (void)n; }
++// hle_hid also exposes scripted touches and controller applets. This fixture
++// exercises only motion/look; t_hid separately checks those stateful paths.
++void dm_touch_script(const dm_touch *touches, int n) { dm_touch_set(touches, n); }
++void dm_applet_enter(const char *name) { (void)name; }
++void dm_applet_leave(void) {}
+ void *objmap_get(const void *p) { (void)p; return NULL; }
+ void objmap_put(const void *p, void *host) { (void)p; (void)host; }
+ void *objmap_del(const void *p) { (void)p; return NULL; }
