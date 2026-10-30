@@ -339,6 +339,78 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      test_priority_and_multitouch(view);
      test_cancel_and_modes(view);
      reset_look(); g_look_enabled = YES;
+@@ -1702,22 +1793,53 @@
+     });
+ }
+ 
++// The orientation checks require a real UIWindowScene, including on SDK 27.
++// Start only after the scene's view has appeared, not from application launch.
++@interface HarnessRootController : UIViewController
++@property(nonatomic, strong) DmGamepad *pad;
++@property(nonatomic) BOOL testsStarted;
++@end
++@implementation HarnessRootController
++- (void)viewDidLoad {
++    [super viewDidLoad];
++    puts("Harness: root view loaded");
++    // The artwork fixture covers enabled badges; the custom-layout test checks default-off.
++    setenv("DM_BOTW_PAD_BADGES","1",1);
++    UIView *raw = dm_gamepad_view(CGRectMake(0, 0, 844, 390));
++    unsetenv("DM_BOTW_PAD_BADGES");
++    [self.view addSubview:raw]; [raw setFrame:CGRectMake(0, 0, 844, 390)]; [raw layoutIfNeeded];
++    self.pad = (DmGamepad *)raw;
++}
++- (void)viewDidAppear:(BOOL)animated {
++    [super viewDidAppear:animated];
++    if (self.testsStarted) return;
++    self.testsStarted = YES;
++    puts("Harness: scene view appeared; starting UIKit checks");
++    dispatch_async(dispatch_get_main_queue(), ^{ run_tests(self.pad); });
++}
++@end
++
++@interface HarnessSceneDelegate : UIResponder <UIWindowSceneDelegate>
++@property(nonatomic, strong) UIWindow *window;
++@end
++@implementation HarnessSceneDelegate
++- (void)scene:(UIScene *)scene willConnectToSession:(UISceneSession *)session options:(UISceneConnectionOptions *)options {
++    (void)session; (void)options;
++    puts("Harness: connecting window scene");
++    assert([scene isKindOfClass:UIWindowScene.class]);
++    self.window = [[UIWindow alloc] initWithWindowScene:(UIWindowScene *)scene];
++    self.window.rootViewController = [HarnessRootController new];
++    [self.window makeKeyAndVisible];
++}
++@end
++
+ @interface HarnessDelegate : UIResponder <UIApplicationDelegate>
+-@property(nonatomic, strong) UIWindow *window;
+ @end
+ @implementation HarnessDelegate
+ - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
+     (void)application; (void)options;
++    puts("Harness: application launched; waiting for its scene");
+     [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmPadLayout"];
+-    self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
+-    UIViewController *root = [UIViewController new]; self.window.rootViewController = root; [self.window makeKeyAndVisible];
+-    // The artwork fixture covers enabled badges; the custom-layout test checks default-off.
+-    setenv("DM_BOTW_PAD_BADGES","1",1);
+-    UIView *raw = dm_gamepad_view(CGRectMake(0, 0, 844, 390));
+-    unsetenv("DM_BOTW_PAD_BADGES");
+-    [root.view addSubview:raw]; [raw setFrame:CGRectMake(0, 0, 844, 390)]; [raw layoutIfNeeded];
+-    DmGamepad *view = (DmGamepad *)raw;
+-    dispatch_async(dispatch_get_main_queue(), ^{ run_tests(view); });
+     return YES;
+ }
+ @end
+@@ -1730,6 +1852,7 @@
+         if (!freopen(log.fileSystemRepresentation, "w", stdout) || dup2(STDOUT_FILENO, STDERR_FILENO) < 0) abort();
+         setvbuf(stdout, NULL, _IOLBF, 0);
+         setvbuf(stderr, NULL, _IOLBF, 0);
++        puts("Harness: entering UIApplicationMain");
+         return UIApplicationMain(argc, argv, nil, NSStringFromClass(HarnessDelegate.class));
+     }
+ }
 diff --git a/dm/host/tests/t_device_motion.c b/dm/host/tests/t_device_motion.c
 --- a/dm/host/tests/t_device_motion.c
 +++ b/dm/host/tests/t_device_motion.c
@@ -354,3 +426,100 @@ diff --git a/dm/host/tests/t_device_motion.c b/dm/host/tests/t_device_motion.c
  void *objmap_get(const void *p) { (void)p; return NULL; }
  void objmap_put(const void *p, void *host) { (void)p; (void)host; }
  void *objmap_del(const void *p) { (void)p; return NULL; }
+diff --git a/dm/ios/tests/run_look_harness.sh b/dm/ios/tests/run_look_harness.sh
+--- a/dm/ios/tests/run_look_harness.sh
++++ b/dm/ios/tests/run_look_harness.sh
+@@ -25,6 +25,7 @@
+ PROFILE='01007EF00011E000'
+ WAS_BOOTED=0
+ INSTALLED=0
++DATA=''
+ OWNER_MARKER="$WORK/.ios-look-harness-owned"
+ 
+ mkdir -p "$WORK"
+@@ -48,6 +49,15 @@
+   <key>MinimumOSVersion</key><string>26.0</string>
+   <key>LSRequiresIPhoneOS</key><true/>
+   <key>UIDeviceFamily</key><array><integer>1</integer></array>
++  <key>UIApplicationSceneManifest</key><dict>
++    <key>UIApplicationSupportsMultipleScenes</key><false/>
++    <key>UISceneConfigurations</key><dict>
++      <key>UIWindowSceneSessionRoleApplication</key><array><dict>
++        <key>UISceneConfigurationName</key><string>Harness</string>
++        <key>UISceneDelegateClassName</key><string>HarnessSceneDelegate</string>
++      </dict></array>
++    </dict>
++  </dict>
+   <key>UISupportedInterfaceOrientations</key><array>
+     <string>UIInterfaceOrientationPortrait</string>
+     <string>UIInterfaceOrientationLandscapeLeft</string>
+@@ -74,11 +84,59 @@
+   "${SIMCTL[@]}" boot "$DEVICE"
+ fi
+ cleanup() {
++  local status=$?
++  trap - EXIT
++  set +e
++  # Preserve partial fixture output before uninstalling its disposable container.
++  # A launch failure often has no result.txt, but details.log still names the
++  # last lifecycle callback or assertion reached.
++  if [[ -n "$DATA" ]]; then
++    for name in details.log result.txt botw-buttons.png botw-dpad-fallback.png botw-shield-drag.png botw-left-drag.png; do
++      [[ ! -f "$DATA/Documents/$name" ]] || cp "$DATA/Documents/$name" "$WORK/$name"
++    done
++  fi
++  if [[ "$status" != 0 ]]; then
++    python3 - "$WORK" "$DEVICE" "${SIMULATOR_DEVICE_SET:-}" <<'PY'
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++
++work, device, device_set = sys.argv[1:]
++work = Path(work)
++marker = work / 'launch-started'
++since = marker.stat().st_mtime if marker.exists() else work.stat().st_mtime
++sim_root = Path(device_set) if device_set else Path.home() / 'Library/Developer/CoreSimulator/Devices'
++roots = [Path.home() / 'Library/Logs/DiagnosticReports',
++         sim_root / device / 'data/Library/Logs/CrashReporter',
++         sim_root / device / 'data/Library/Logs/DiagnosticReports']
++for index, root in enumerate(roots):
++    if not root.is_dir():
++        continue
++    candidates = [p for p in root.glob('IOSLookHarness*')
++                  if p.is_file() and p.suffix in ('.ips', '.crash') and p.stat().st_mtime >= since]
++    for source in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[:5]:
++        shutil.copyfile(source, work / ('crash-' + str(index) + '-' + source.name))
++command = ['xcrun', 'simctl']
++if device_set:
++    command += ['--set', device_set]
++command += ['spawn', device, 'log', 'show', '--last', '10m', '--style', 'compact',
++            '--predicate', 'process == "IOSLookHarness" OR eventMessage CONTAINS "org.nxnative.ioslookharness"']
++with (work / 'simulator-app.log').open('w') as output:
++    try:
++        subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=30, check=False)
++    except (OSError, subprocess.TimeoutExpired) as error:
++        output.write('\nDiagnostic command failed: ' + str(error) + '\n')
++PY
++    if [[ -f "$WORK/details.log" ]]; then tail -n 80 "$WORK/details.log" >&2; fi
++  fi
+   if [[ "$INSTALLED" == 1 ]]; then
+     "${SIMCTL[@]}" terminate "$DEVICE" "$BUNDLE" >/dev/null 2>&1 || true
+     "${SIMCTL[@]}" uninstall "$DEVICE" "$BUNDLE" >/dev/null 2>&1 || true
+   fi
+   if [[ "$WAS_BOOTED" == 0 ]]; then "${SIMCTL[@]}" shutdown "$DEVICE" >/dev/null 2>&1 || true; fi
++  exit "$status"
+ }
+ trap cleanup EXIT
+ "${SIMCTL[@]}" bootstatus "$DEVICE" -b
+@@ -86,7 +144,8 @@
+ INSTALLED=1
+ DATA="$("${SIMCTL[@]}" get_app_container "$DEVICE" "$BUNDLE" data)"
+ rm -f "$DATA/Documents/result.txt" "$DATA/Documents/details.log"
+-"${SIMCTL[@]}" launch --terminate-running-process "$DEVICE" "$BUNDLE"
++touch "$WORK/launch-started"
++"${SIMCTL[@]}" launch --terminate-running-process --stdout="$WORK/app-stdout.log" --stderr="$WORK/app-stderr.log" "$DEVICE" "$BUNDLE"
+ for _ in $(seq 1 120); do
+   [[ -f "$DATA/Documents/result.txt" ]] && break
+   sleep 0.25

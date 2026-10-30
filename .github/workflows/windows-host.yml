@@ -138,5 +138,8 @@ jobs:
             ${{ runner.temp }}/touch-tests/report.json
             ${{ runner.temp }}/touch-tests/uikit/*.log
             ${{ runner.temp }}/touch-tests/uikit/*.png
+            ${{ runner.temp }}/touch-tests/uikit/*.txt
+            ${{ runner.temp }}/touch-tests/uikit/*.ips
+            ${{ runner.temp }}/touch-tests/uikit/*.crash
           if-no-files-found: warn
           retention-days: 14
