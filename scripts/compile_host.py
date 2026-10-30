@@ -22,9 +22,10 @@ import sys
 import zipfile
 
 GAME = '01007EF00011E000'
-UPSTREAM_PIN = '32b12b4de075f13fa8658b980f164c992e6136a1'
+TOUCH_PIN = 'e1b4196c589735c8b74cfe1f555167a6f380ae88'
+UPSTREAM_PIN = 'fe6d3dfadb899e2a3525ea7a1d85a4255ca4e8a3'
 FORK_PIN = 'd1ba3e97876da86ff616c6d8e8d684b968fb8c5d'
-CHAIN_PIN = '2fcec1622a5f'
+CHAIN_PIN = '715bb867230c'
 LLVM_SHA256 = 'fd5462b7f5d93b2ff981fcd3f9c7e427e47f3203c64ea91c27bcc444eebd74cd'
 SDK_SHA256 = '97d107a51562b2236c064a0dea98777faddcf65a1259d4f7abccd46695ef3c15'
 
@@ -58,7 +59,8 @@ def compile_host(stage, manifest_path, out, artifact, jobs):
             artifact.is_relative_to(out) or out.is_relative_to(artifact) or jobs < 1 or jobs > 16):
         raise ValueError('Use separate build/artifact paths outside the source stage and 1-16 jobs')
     provenance = read_json(stage / 'provenance.json')
-    if (provenance.get('upstream', {}).get('commit') != UPSTREAM_PIN or
+    if (provenance.get('upstream', {}).get('commit') != TOUCH_PIN or
+            provenance.get('upstream_merge', {}).get('commit') != UPSTREAM_PIN or
             provenance.get('fork', {}).get('commit') != FORK_PIN or
             provenance.get('limitations', {}).get('game_data_included') is not False):
         raise ValueError('Unexpected source stage provenance')
@@ -146,7 +148,8 @@ def compile_host(stage, manifest_path, out, artifact, jobs):
                 archive_files.append((path, 'licenses/' + relative))
     build_report = {
         'schema_version': 1, 'status': 'compiled_host_objects_only',
-        'upstream_commit': UPSTREAM_PIN, 'fork_commit': FORK_PIN, 'profile': GAME,
+        'touch_fork_commit': TOUCH_PIN, 'upstream_commit': UPSTREAM_PIN,
+        'fork_commit': FORK_PIN, 'profile': GAME,
         'compiled_shader_chain': CHAIN_PIN, 'optimization': 'O1', 'cpu': 'apple-a16', 'ios_minimum': '26.0',
         'object_count': len(normalized), 'source_provenance_sha256': sha256(stage / 'provenance.json'),
         'compiler': tools['compiler_versions'], 'llvm': tools['llvm'], 'sdk_release': tools['sdk_release'],
@@ -157,7 +160,9 @@ def compile_host(stage, manifest_path, out, artifact, jobs):
             'Relocatable host objects only, not a runnable DmIOS or IPA.',
             'Compiled for the pinned upstream chain; old Windows shader libraries are not claimed compatible.',
             'Recompile nvn_mtl.m if the actual final shader chain changes.',
-            'Original guest rewrite updates, native aspect/HUD work and plugin integration remain separate.',
+            'Native aspect and touch host code require matching freshly rewritten guest modules.',
+            'The Windows Objective-C launcher does not yet expose the SwiftUI touch layout editor.',
+            'Existing NXKeyboard keyboard/mouse integration must be adapted to the new host.',
         ],
     }
     README = (

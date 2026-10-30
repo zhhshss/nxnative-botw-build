@@ -1,0 +1,341 @@
+diff --git a/dm/ios/Sources/DmGamepad.m b/dm/ios/Sources/DmGamepad.m
+--- a/dm/ios/Sources/DmGamepad.m
++++ b/dm/ios/Sources/DmGamepad.m
+@@ -17,6 +17,7 @@
+ #import <GameController/GameController.h>
+ #import <CoreMotion/CoreMotion.h>
+ #import <CoreText/CoreText.h>
++#import <QuartzCore/CADisplayLink.h>
+ #include <pthread.h>
+ #include <math.h>
+ #include <stdatomic.h>
+@@ -214,6 +215,8 @@
+ 
+ @interface DmGamepad : UIView <UIGestureRecognizerDelegate>
+ - (void)checkLookGeometry;
++- (void)pollLookTouches;
++- (void)recoverInactiveLookTouchesExcept:(NSSet<UITouch *> *)current;
+ - (void)publishTouchHudForController:(BOOL)connected;
+ - (void)refreshTouchHudMode;
+ - (BOOL)leftStickOwnsPoint:(CGPoint)p;
+@@ -234,6 +237,19 @@
+ - (void)sendBotwMenuPointer:(int)phase point:(CGPoint)p;
+ - (BOOL)manualPadGestureAllowed;
+ - (void)revealBotwMenuPad:(UITapGestureRecognizer *)recognizer;
++@end
++
++// The display link must not keep a removed gamepad alive. It runs only while
++// a look owner exists, so a missing UIKit release cannot leave stick input held.
++@interface DmLookDisplayTarget : NSObject
++@property(nonatomic, weak) DmGamepad *view;
++- (void)tick:(CADisplayLink *)link;
++@end
++@implementation DmLookDisplayTarget
++- (void)tick:(CADisplayLink *)link {
++    DmGamepad *view = self.view;
++    if (view) [view pollLookTouches]; else [link invalidate];
++}
+ @end
+ static __weak DmGamepad *g_view;
+ void front_botw_touch_hud_mode_changed(void) { dispatch_async(dispatch_get_main_queue(), ^{ [g_view refreshTouchHudMode]; }); }
+@@ -292,6 +308,7 @@
+     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
+     UITouch *_lookTouch; CGPoint _lookLast, _lookDown, _botwLookTapPoint; CGFloat _lookScale; CFTimeInterval _lookDownTime, _botwLookTapTime; BOOL _lookDragged, _botwLookTapPending;
+     CGSize _lookBoundsSize; UIInterfaceOrientation _lookOrientation; BOOL _lookGeometryKnown;
++    CADisplayLink *_lookDisplayLink;
+ }
+ 
+ static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_text, *k_textOn;
+@@ -872,8 +889,36 @@
+     _stickShown = stick;
+ }
+ // ---- Relative camera look ----
++- (void)stopLookDisplayLink {
++    [_lookDisplayLink invalidate]; _lookDisplayLink = nil;
++}
++- (void)startLookDisplayLink {
++    if (_lookDisplayLink) return;
++    DmLookDisplayTarget *target = [DmLookDisplayTarget new]; target.view = self;
++    _lookDisplayLink = [CADisplayLink displayLinkWithTarget:target selector:@selector(tick:)];
++    [_lookDisplayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
++}
++- (void)dealloc { [_lookDisplayLink invalidate]; }
++- (void)recoverInactiveLookTouchesExcept:(NSSet<UITouch *> *)current {
++    // A normal end handler still owns its final position. Only recover releases
++    // not being delivered now; recovery cancels, without inventing a last delta.
++    for (UITouch *touch in _owner.keyEnumerator.allObjects) {
++        if ([current containsObject:touch] ||
++            ([_owner objectForKey:touch].unsignedLongLongValue & 0xff) != C_LOOK) continue;
++        if (touch.phase != UITouchPhaseEnded && touch.phase != UITouchPhaseCancelled) continue;
++        if (touch == _lookTouch) [self cancelLook];
++        [_owner removeObjectForKey:touch];
++    }
++}
++- (void)pollLookTouches {
++    [self recoverInactiveLookTouchesExcept:nil];
++    [self checkLookGeometry];
++    if (_lookTouch && (!_full || _tap || _padOff || _manualMenuPad || !dm_look_enabled()))
++        [self cancelLook];
++}
+ - (void)cancelLook {   // Keep the owner's C_LOOK entry until lift; it cannot turn into a stick mid-gesture.
+     UITouch *owner = _lookTouch;
++    [self stopLookDisplayLink];
+     if (owner) dm_look_input(DM_LOOK_CANCEL, 0, 0);
+     _botwLookTapPending = NO;
+     _lookTouch = nil; _lookScale = 0;
+@@ -899,14 +944,19 @@
+ }
+ - (void)beginLook:(UITouch *)t at:(CGPoint)p {
+     [self checkLookGeometry];
++    if ([_owner objectForKey:t]) return; // Never reactivate a displaced/cancelled finger.
+     [_owner setObject:@(C_LOOK) forKey:t];
+-    if (_lookTouch) { _botwLookTapPending = NO; _lookDragged = YES; return; } // overlapping camera fingers cancel tap recognition
+     if (!dm_look_enabled()) return;
+     CGFloat scale = MIN(self.bounds.size.width, self.bounds.size.height);
+     if (scale <= 0) return;
+-    _lookTouch = t; _lookLast = _lookDown = p; _lookDownTime = t.timestamp; _lookDragged = NO; _lookScale = scale;
++    // A fresh finger takes ownership at its own position. Drop the old queued
++    // displacement and keep the displaced finger inert until its release.
++    BOOL replaced = _lookTouch != nil;
++    if (replaced) [self cancelLook];
++    _lookTouch = t; _lookLast = _lookDown = p; _lookDownTime = t.timestamp; _lookDragged = replaced; _lookScale = scale;
+     _stick[1] = t; _stickNow[1] = p; _rCentre = p;
+     dm_look_input(DM_LOOK_BEGIN, 0, 0);
++    [self startLookDisplayLink];
+ }
+ - (void)moveLook:(UITouch *)t to:(CGPoint)p {
+     [self checkLookGeometry];
+@@ -931,6 +981,7 @@
+     if (t == _lookTouch) {
+         BOOL tap = dm_touchpad_look_tap((float)(t.timestamp - _lookDownTime), _lookDragged);
+         dm_look_input(DM_LOOK_END, 0, 0); _lookTouch = nil; _lookScale = 0;
++        [self stopLookDisplayLink];
+         if (tap && [self botwTouchControlsActive]) {
+             CGFloat u = self.u;
+             if (_botwLookTapPending && dm_touchpad_look_double_tap((double)_botwLookTapTime, (double)t.timestamp,
+@@ -964,6 +1015,7 @@
+ - (void)touchesBegan:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e {
+     motion_first_input();
+     [self refreshBotwTouchMenuMode];
++    [self recoverInactiveLookTouchesExcept:nil];
+     if (_menuPadChord.count) { [_menuPadChord unionSet:ts]; return; }
+     if ([self manualPadGestureAllowed]) {
+         NSMutableSet<UITouch *> *active = [NSMutableSet new];
+@@ -978,7 +1030,13 @@
+     }
+     if (ts.count > 1) _botwLookTapPending = NO;
+     BOOL game = NO;
+-    for (UITouch *t in ts) {
++    // NSSet order is unspecified. The newest eligible camera touch in a batch
++    // must win just as it does when UIKit delivers separate begin events.
++    NSArray<UITouch *> *began = [ts.allObjects sortedArrayUsingComparator:^NSComparisonResult(UITouch *a, UITouch *b) {
++        return a.timestamp < b.timestamp ? NSOrderedAscending : a.timestamp > b.timestamp ? NSOrderedDescending : NSOrderedSame;
++    }];
++    for (UITouch *t in began) {
++        if ([_owner objectForKey:t]) continue;
+         if (_botwMenuMode && !_manualMenuPad && !_botwCameraPadVisible) {
+             if ([self botwMenuDpadActive]) {
+                 CGPoint p=[t locationInView:self];
+@@ -1120,6 +1178,7 @@
+ }
+ - (void)touchesMoved:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e {
+     [self refreshBotwTouchMenuMode];
++    [self recoverInactiveLookTouchesExcept:nil];
+     if (_menuPadChord.count) return;
+     BOOL game = NO;
+     for (UITouch *t in ts) {
+@@ -1168,6 +1227,7 @@
+ }
+ - (void)endTouches:(NSSet<UITouch *> *)ts tapped:(BOOL)ended {
+     [self refreshBotwTouchMenuMode];
++    [self recoverInactiveLookTouchesExcept:ts];
+     if (_menuPadChord.count) { [_menuPadChord minusSet:ts]; return; }
+     BOOL swap = NO, game = NO;
+     for (UITouch *t in ts) {
+@@ -1315,6 +1375,7 @@
+ - (void)deviceOrientationChanged { motion_update_flip(self.window.windowScene); [self checkLookGeometry]; }
+ - (void)layoutSubviews {
+     [super layoutSubviews];
++    [self recoverInactiveLookTouchesExcept:nil];
+     motion_update_flip(self.window.windowScene);
+     [self checkLookGeometry];
+     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
+diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
+--- a/dm/ios/tests/ios_look_harness.m
++++ b/dm/ios/tests/ios_look_harness.m
+@@ -83,6 +83,7 @@
+ - (void)dm_testBotwTouchActionChanged;
+ - (void)dm_testPulseBotwL3;
+ - (void)reset;
++- (void)pollLookTouches;
+ - (void)padsChanged:(NSNotification *)note;
+ - (void)deviceOrientationChanged;
+ - (CGPoint)facePos:(int)button;
+@@ -95,12 +96,14 @@
+ @interface FakeTouch : UITouch
+ @property(nonatomic) CGPoint point;
+ @property(nonatomic) NSTimeInterval timeValue;
++@property(nonatomic) UITouchPhase phaseValue;
+ - (instancetype)initAt:(CGPoint)point;
+ @end
+ @implementation FakeTouch
+ - (instancetype)initAt:(CGPoint)point { if ((self = [super init])) _point = point; return self; }
+ - (CGPoint)locationInView:(UIView *)view { (void)view; return self.point; }
+ - (NSTimeInterval)timestamp { return self.timeValue; }
++- (UITouchPhase)phase { return self.phaseValue; }
+ @end
+ 
+ @interface FakeTouchEvent : UIEvent
+@@ -255,16 +258,17 @@
+ } while (0)
+ 
+ static FakeTouch *touch(CGFloat x, CGFloat y) { return [[FakeTouch alloc] initAt:CGPointMake(x, y)]; }
+-static void began(DmGamepad *view, FakeTouch *t) { [view touchesBegan:[NSSet setWithObject:t] withEvent:nil]; }
++static void began(DmGamepad *view, FakeTouch *t) { t.phaseValue = UITouchPhaseBegan; [view touchesBegan:[NSSet setWithObject:t] withEvent:nil]; }
+ static void beganAt(DmGamepad *view, FakeTouch *t, NSTimeInterval time) { t.timeValue = time; began(view, t); }
+-static void moved(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); [view touchesMoved:[NSSet setWithObject:t] withEvent:nil]; }
++static void moved(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); t.phaseValue = UITouchPhaseMoved; [view touchesMoved:[NSSet setWithObject:t] withEvent:nil]; }
+ static void movedTogether(DmGamepad *view, FakeTouch *a, CGPoint ap, FakeTouch *b, CGPoint bp) {
+     a.point = ap; b.point = bp;
++    a.phaseValue = b.phaseValue = UITouchPhaseMoved;
+     [view touchesMoved:[NSSet setWithObjects:a, b, nil] withEvent:nil];
+ }
+-static void ended(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); [view touchesEnded:[NSSet setWithObject:t] withEvent:nil]; }
++static void ended(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); t.phaseValue = UITouchPhaseEnded; [view touchesEnded:[NSSet setWithObject:t] withEvent:nil]; }
+ static void endedAt(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y, NSTimeInterval time) { t.timeValue = time; ended(view, t, x, y); }
+-static void cancelled(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); [view touchesCancelled:[NSSet setWithObject:t] withEvent:nil]; }
++static void cancelled(DmGamepad *view, FakeTouch *t, CGFloat x, CGFloat y) { t.point = CGPointMake(x, y); t.phaseValue = UITouchPhaseCancelled; [view touchesCancelled:[NSSet setWithObject:t] withEvent:nil]; }
+ static void reset_look(void) {
+     if (g_look_held) { fprintf(stderr, "FAIL: test left look session held\n"); ++g_failures; g_look_held = NO; }
+     g_look_count = 0; g_queued_dx = g_queued_dy = 0;
+@@ -769,6 +773,19 @@
+           "cancelled gesture clears pending R3 tap and does not leave look active");
+ 
+     reset_look(); g_input_sets = 0;
++    FakeTouch *beforeOverlap = touch(camera.x,camera.y);
++    beganAt(view,beforeOverlap,3.4); endedAt(view,beforeOverlap,camera.x,camera.y,3.45);
++    FakeTouch *overlapOld = touch(camera.x,camera.y), *overlapNew = touch(camera.x+2,camera.y+2);
++    beganAt(view,overlapOld,3.5); beganAt(view,overlapNew,3.52);
++    endedAt(view,overlapNew,camera.x+2,camera.y+2,3.57);
++    endedAt(view,overlapOld,camera.x,camera.y,3.6);
++    FakeTouch *afterOverlap = touch(camera.x,camera.y);
++    beganAt(view,afterOverlap,3.7); endedAt(view,afterOverlap,camera.x,camera.y,3.75);
++    BOOL overlapR3 = NO; for (int i=0; i<g_input_sets; i++) overlapR3 |= (g_input_history[i] & DM_BTN_RS) != 0;
++    CHECK(!overlapR3 && !g_look_held,
++          "camera ownership transfer clears a pending R3 sequence and never counts as a tap");
++
++    reset_look(); g_input_sets = 0;
+     FakeTouch *pendingTap3 = touch(camera.x,camera.y); beganAt(view,pendingTap3,4.0); endedAt(view,pendingTap3,camera.x,camera.y,4.08);
+     FakeTouch *mapAgain = touch(mapPoint.x,mapPoint.y); began(view,mapAgain); ended(view,mapAgain,mapPoint.x,mapPoint.y);
+     FakeTouch *afterMap = touch(camera.x,camera.y); beganAt(view,afterMap,4.2); endedAt(view,afterMap,camera.x,camera.y,4.28);
+@@ -1376,20 +1393,93 @@
+     reset_look();
+     int prior_begins = g_begin_count;
+     FakeTouch *first = touch(600, 150), *second = touch(700, 180);
+-    began(view, first); moved(view, first, 620, 150); int held_rx = g_rx, held_look_count = g_look_count;
++    began(view, first); moved(view, first, 620, 150); int held_look_count = g_look_count;
+     began(view, second);
+-    CHECK(g_begin_count == prior_begins + 1 && g_look_count == held_look_count, "a second right-region finger is inert while look is owned");
+-    moved(view, second, 740, 220);
+-    CHECK(g_rx == held_rx && g_look_count == held_look_count,
+-          "an inert second finger cannot change the owner right-stick axes or relative look stream");
++    CHECK(g_begin_count == prior_begins + 2 && g_look_count == held_look_count + 2 &&
++          g_look_events[held_look_count].phase == DM_LOOK_CANCEL &&
++          g_look_events[held_look_count + 1].phase == DM_LOOK_BEGIN,
++          "a new camera finger cancels the old stream and begins its own session");
++    CHECK(g_rx == 0 && g_ry == 0 && g_queued_dx == 0 && g_queued_dy == 0,
++          "camera ownership change clears old axes and queued movement without a jump");
++    moved(view, second, 710, 190);
++    near_value(g_look_events[g_look_count - 1].dx, 10.0f / 390.0f,
++          "replacement camera movement is measured from its own touch-down point");
++    int replacement_count = g_look_count, replacement_rx = g_rx, replacement_ry = g_ry;
++    moved(view, first, 650, 160);
++    CHECK(g_look_count == replacement_count && g_rx == replacement_rx && g_ry == replacement_ry,
++          "displaced camera finger cannot move the replacement owner's axes or look stream");
+     ended(view, first, 600, 150);
+-    CHECK(g_rx == 0 && g_ry == 0, "lifting the look owner clears its virtual right-stick axes immediately");
++    CHECK(g_look_held && g_look_count == replacement_count && g_rx == replacement_rx,
++          "lifting the displaced camera finger does not release the new owner");
+     moved(view, second, 720, 200); ended(view, second, 720, 200);
+-    CHECK(g_look_count == held_look_count + 2 && g_look_events[g_look_count - 1].phase == DM_LOOK_END,
+-          "an inert second finger does not take over after the owner lifts");
++    CHECK(!g_look_held && g_rx == 0 && g_ry == 0 && g_look_events[g_look_count - 1].phase == DM_LOOK_END,
++          "the replacement camera keeps moving after the original lifts and releases normally");
++    replacement_count = g_look_count;
+     FakeTouch *next = touch(650, 180); began(view, next);
+-    CHECK(g_look_count == held_look_count + 3 && g_look_events[g_look_count - 1].phase == DM_LOOK_BEGIN, "a fresh finger can begin look after the old gesture ends");
++    CHECK(g_look_count == replacement_count + 1 && g_look_events[g_look_count - 1].phase == DM_LOOK_BEGIN, "a fresh finger can begin look after the old gesture ends");
+     ended(view, next, 650, 180);
++}
++
++static void test_look_owner_recovery(DmGamepad *view) {
++    g_look_enabled = YES; [view setFull:YES]; [view reset];
++    reset_look();
++    FakeTouch *older = touch(600,150), *newer = touch(700,180);
++    older.timeValue = 10; newer.timeValue = 11;
++    [view touchesBegan:[NSSet setWithObjects:newer, older, nil] withEvent:nil];
++    int count = g_look_count;
++    moved(view, older,610,150);
++    CHECK(g_look_count == count, "simultaneous begins choose the newest timestamp, regardless of set order");
++    moved(view, newer,710,180);
++    CHECK(g_look_count == count + 1, "the newest eligible camera finger receives movement");
++    cancelled(view,newer,710,180);
++    count = g_look_count;
++    moved(view,older,620,150);
++    CHECK(g_look_count == count && !g_look_held && g_rx == 0,
++          "cancelling a replacement never revives the displaced camera finger");
++    ended(view,older,620,150);
++
++    // Simulate a recognizer or interrupted dispatch consuming the release.
++    // The display callback must clear it even with no later touch event.
++    for (int phase = UITouchPhaseEnded; phase <= UITouchPhaseCancelled; phase++) {
++        reset_look();
++        FakeTouch *lost = touch(600,150); began(view,lost); moved(view,lost,625,165);
++        lost.phaseValue = (UITouchPhase)phase; lost.point = CGPointMake(900,300);
++        count = g_look_count;
++        [view pollLookTouches];
++        CHECK(g_look_count == count + 1 && g_look_events[count].phase == DM_LOOK_CANCEL &&
++              !g_look_held && g_rx == 0 && g_ry == 0 && g_queued_dx == 0 && g_queued_dy == 0,
++              "display polling cancels a missed End/Cancel without adding its stale final position");
++        [view pollLookTouches];
++        moved(view,lost,910,310); ended(view,lost,910,310);
++        CHECK(g_look_count == count + 1 && g_rx == 0 && g_ry == 0,
++              "a recovered camera finger stays inert on late callbacks");
++    }
++
++    reset_look();
++    FakeTouch *lost = touch(600,150); began(view,lost); moved(view,lost,620,150);
++    lost.phaseValue = UITouchPhaseCancelled;
++    CGPoint facePoint = [view facePos:0]; FakeTouch *face = touch(facePoint.x,facePoint.y);
++    began(view,face);
++    CHECK(!g_look_held && g_rx == 0 && (g_buttons & DM_BTN_A),
++          "an unrelated control begin recovers a missed look cancel and keeps its own button input");
++    ended(view,face,facePoint.x,facePoint.y);
++
++    reset_look();
++    older = touch(600,150); newer = touch(700,180);
++    began(view,older); began(view,newer); moved(view,newer,710,180);
++    older.phaseValue = UITouchPhaseEnded; count = g_look_count;
++    [view pollLookTouches];
++    CHECK(g_look_held && g_look_count == count && g_rx != 0,
++          "recovering a displaced finger's missed release leaves the current owner moving");
++    ended(view,newer,710,180);
++
++    // Layout refresh is another native display path and must also recover.
++    reset_look(); lost = touch(600,150); began(view,lost); moved(view,lost,620,150);
++    lost.phaseValue = UITouchPhaseCancelled;
++    [view setNeedsLayout]; [view layoutIfNeeded];
++    CHECK(!g_look_held && g_rx == 0 && g_ry == 0,
++          "native layout refresh clears a missed camera cancel");
++    [view reset];
+ }
+ 
+ static void test_cancel_and_modes(DmGamepad *view) {
+@@ -1670,6 +1760,7 @@
+     test_botw_inventory_pointer(view);
+     test_motion_orientation();
+     test_look_drag(view);
++    test_look_owner_recovery(view);
+     test_priority_and_multitouch(view);
+     test_cancel_and_modes(view);
+     reset_look(); g_look_enabled = YES;

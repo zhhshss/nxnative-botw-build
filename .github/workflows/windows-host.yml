@@ -1,4 +1,4 @@
-name: Windows host and plugin
+name: Touch the Wild Windows host and controls
 
 on:
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
       - 'plugin/**'
       - 'source-pins.json'
       - 'tests/**'
+      - 'patches/**'
 
 permissions:
   contents: read
@@ -56,8 +57,8 @@ jobs:
           python-version: '3.13'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          repository: seedds/nxnative
-          ref: 32b12b4de075f13fa8658b980f164c992e6136a1
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
           path: upstream
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -97,3 +98,45 @@ jobs:
           path: ${{ runner.temp }}/host/host/logs
           if-no-files-found: warn
           retention-days: 7
+
+  touch-checks:
+    name: Native aspect, input, and UIKit handler tests
+    runs-on: xcode-27
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          path: upstream
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: xbunax/nxnative
+          ref: d1ba3e97876da86ff616c6d8e8d684b968fb8c5d
+          path: fork
+          persist-credentials: false
+      - name: Prepare the same reviewed source tree as the Windows build
+        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite
+      - name: Host and real UIKit handler regressions without game files
+        run: python3 scripts/check_touch_controls.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/touch-tests"
+      - name: Upload regression results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: touch-and-aspect-tests
+          path: |
+            ${{ runner.temp }}/touch-tests/*.log
+            ${{ runner.temp }}/touch-tests/report.json
+            ${{ runner.temp }}/touch-tests/uikit/*.log
+            ${{ runner.temp }}/touch-tests/uikit/*.png
+          if-no-files-found: warn
+          retention-days: 14

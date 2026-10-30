@@ -1,0 +1,2579 @@
+{
+  "common_base": "ee6648cb2bb46c19255c1d04f88e9c40d36ef6b4",
+  "touch_head": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
+  "upstream_head": "fe6d3dfadb899e2a3525ea7a1d85a4255ca4e8a3",
+  "files": [
+    {
+      "path": ".clang-tidy",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "2d8fe3a5a18383bafc0efd65c0a40c507d5ba860",
+          "mode": "100644",
+          "sha256": "160d9f10de119ec42575f5baf0914efd33f3e514ff1cfd2a269aad67e6b62000"
+        }
+      },
+      "result": {
+        "sha256": "160d9f10de119ec42575f5baf0914efd33f3e514ff1cfd2a269aad67e6b62000",
+        "git_blob": "2d8fe3a5a18383bafc0efd65c0a40c507d5ba860",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": ".github/requirements/coverage.txt",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "afa5879e59fff895ad6d94c296b8a411cf027be8",
+          "mode": "100644",
+          "sha256": "6442fbd2a1a3c794161223ae0a101bae11d3fe886ef967418523ec5235a973b1"
+        }
+      },
+      "result": {
+        "sha256": "6442fbd2a1a3c794161223ae0a101bae11d3fe886ef967418523ec5235a973b1",
+        "git_blob": "afa5879e59fff895ad6d94c296b8a411cf027be8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": ".github/workflows/lint-c.yml",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "660d5d51a5f5a2d9a1eb2553bc6439be3db00d76",
+          "mode": "100644",
+          "sha256": "d0305f31fe25488970223bca77babdcd8e507ecbbae9e5386401eff356e44939"
+        }
+      },
+      "result": {
+        "sha256": "d0305f31fe25488970223bca77babdcd8e507ecbbae9e5386401eff356e44939",
+        "git_blob": "660d5d51a5f5a2d9a1eb2553bc6439be3db00d76",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "a77ef20950c63b49b95fe776f1b6b18974950baf",
+          "mode": "100644",
+          "sha256": "4bdff34a78b47d920f8a3de4d4fbc1d3a92925f0a9a855442090d5985b12b977"
+        },
+        "touch": {
+          "git_blob": "ef40548df9a215ddf481428bb10579ffcd1e4c88",
+          "mode": "100644",
+          "sha256": "e8af5b3cc2facf2957eb8cf39f344823c76f37506ad399fa6334c54b78e23bb3"
+        },
+        "upstream": {
+          "git_blob": "1a74e8a248b25036d71c20487b9e1c374765e0dc",
+          "mode": "100644",
+          "sha256": "b96e953da705def8f0faba46e8825bd9f1d6e2b3c6a90e44759f94c948b9a7fe"
+        }
+      },
+      "result": {
+        "sha256": "bf90633a2be2f6fb4b85c073550ec653011e35a8349799a437221daf09e8e99f",
+        "git_blob": "24ed2c2e29a4a71c0fd91d9d7c58e0b7f9af9d5c",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": ".gitignore",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "7d8792d62c604ef441f430de7796c5b974d8873c",
+          "mode": "100644",
+          "sha256": "10718e0c6ce5045fd8b0a4c783606b9e2c8219bf702c842c4852e7d8be056402"
+        },
+        "touch": {
+          "git_blob": "a40c2672ab6867597817f2df9aa53a8f6eb7b681",
+          "mode": "100644",
+          "sha256": "ac591cef7992a520390d82efb4fd7829d2dbcd2e19ed2f517cdcd517c175e685"
+        },
+        "upstream": {
+          "git_blob": "e482f65aa6d2e31253edbbf2e850c8f7174ffdf1",
+          "mode": "100644",
+          "sha256": "7dedb81fbed1eb23accd2bebc76838f059589a7da26dac1f97ec0467579e5f3e"
+        }
+      },
+      "result": {
+        "sha256": "b578518fc96e42767f02a03b543837b06aa80b1ac5da68e804f1abe1e90153c7",
+        "git_blob": "1993344a51f9caa2aedec6fe1a60ca8e04b84b72",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "README.md",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "d31beac7740a1a4dbfd990ba41a09e62ce702039",
+          "mode": "100644",
+          "sha256": "084c57fbf40d527f2320b59f1fd390c13c2adeada306eff991cb52f4051b27de"
+        },
+        "touch": {
+          "git_blob": "38c441d8943fceb9f3aac3de44f2e229100170fc",
+          "mode": "100644",
+          "sha256": "64383e145f33745b45b1864484427a51edb6f41ad993cb87714350d37c3cdc76"
+        },
+        "upstream": {
+          "git_blob": "0c19d4422cd872239324f7925a751326c0d8aa02",
+          "mode": "100644",
+          "sha256": "3862d4dcff8555741d7d4a3a6fa58618f52b808c19294ec573bf0e1e76416b05"
+        }
+      },
+      "result": {
+        "sha256": "e0cebaafa4115ca2e6253a02e47b5aff4a218dfd3fe30b6adff815a409002890",
+        "git_blob": "2bc6b8df97a81b5fabc4fd7d3f7a5ffa8efdcdb0",
+        "mode": "100644"
+      },
+      "resolution": "Preserve the concise touch fork README and its existing translation; add upstream Xcode 27.1 side-by-side selection and Metal toolchain guidance without restoring the removed upstream gallery."
+    },
+    {
+      "path": "dm/games/010031F019294000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "2c5056d0179bdc3c84268407b5ec3a0d3d97d314",
+          "mode": "100644",
+          "sha256": "f25e3dc10f46e7d57a230fd047b6a8891e1523aeab19f424b19f64a76450fee7"
+        }
+      },
+      "result": {
+        "sha256": "f25e3dc10f46e7d57a230fd047b6a8891e1523aeab19f424b19f64a76450fee7",
+        "git_blob": "2c5056d0179bdc3c84268407b5ec3a0d3d97d314",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/bf_want.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "54caeb854fbd18fcd636b9eb05bbfcc9ee5c8847",
+          "mode": "100644",
+          "sha256": "8e91845e3b2e8793a97b7a0e7c33c58ad92761e7d2ed7ffe60f8fb0e196649cf"
+        }
+      },
+      "result": {
+        "sha256": "8e91845e3b2e8793a97b7a0e7c33c58ad92761e7d2ed7ffe60f8fb0e196649cf",
+        "git_blob": "54caeb854fbd18fcd636b9eb05bbfcc9ee5c8847",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "fa081902a3848d12806af768037e8763994e0af0",
+          "mode": "100644",
+          "sha256": "418a9962d285eb0b2f4d2fa1f728dc937bdfcf4f283cf64237387ade639b7f06"
+        }
+      },
+      "result": {
+        "sha256": "418a9962d285eb0b2f4d2fa1f728dc937bdfcf4f283cf64237387ade639b7f06",
+        "git_blob": "fa081902a3848d12806af768037e8763994e0af0",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/pso_manifest.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "4620515f1088edd80157c5015babdc91f5e48217",
+          "mode": "100644",
+          "sha256": "32ac70bcbc4f535c3a2781f44697459832551ab51d948309e0b54e5a3fc94e4f"
+        }
+      },
+      "result": {
+        "sha256": "32ac70bcbc4f535c3a2781f44697459832551ab51d948309e0b54e5a3fc94e4f",
+        "git_blob": "4620515f1088edd80157c5015babdc91f5e48217",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/pso_pairs.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "ccd04457450585143a21ae07f4cbb5f7997801da",
+          "mode": "100644",
+          "sha256": "f7ff7877621c87f2aad2cfbdd8d307f55c6b02161dd3e80adb19a3eb2f668d57"
+        }
+      },
+      "result": {
+        "sha256": "f7ff7877621c87f2aad2cfbdd8d307f55c6b02161dd3e80adb19a3eb2f668d57",
+        "git_blob": "ccd04457450585143a21ae07f4cbb5f7997801da",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/shader_facts.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "526e0f14b7bf748ac87db87022413b7c09b641f9",
+          "mode": "100644",
+          "sha256": "3e6bdd064b841c3c2f93af8a8bee5146e9fd5a381c022ceb66fc8d7748514cf8"
+        }
+      },
+      "result": {
+        "sha256": "3e6bdd064b841c3c2f93af8a8bee5146e9fd5a381c022ceb66fc8d7748514cf8",
+        "git_blob": "526e0f14b7bf748ac87db87022413b7c09b641f9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/shader_map.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "c23061ae163dcfd66b1fd3cae924784358654f36",
+          "mode": "100644",
+          "sha256": "70c1eb45f5ad7390c271bd8d40471c7d16f1704a7f2a950c8c27a878b7e25d94"
+        }
+      },
+      "result": {
+        "sha256": "70c1eb45f5ad7390c271bd8d40471c7d16f1704a7f2a950c8c27a878b7e25d94",
+        "git_blob": "c23061ae163dcfd66b1fd3cae924784358654f36",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/shader_map.tsv.conflicts.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "35c1b4d22f25d1056ad48263c88c1518aa8276ca",
+          "mode": "100644",
+          "sha256": "9027ebaa0013f171b19fac84a1cb371690776f242a887db69164ff3084449568"
+        }
+      },
+      "result": {
+        "sha256": "9027ebaa0013f171b19fac84a1cb371690776f242a887db69164ff3084449568",
+        "git_blob": "35c1b4d22f25d1056ad48263c88c1518aa8276ca",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010031F019294000/shader_pairs.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "f7b4c47cba0a32e104eaca02a0df225e062035ce",
+          "mode": "100644",
+          "sha256": "d2892fffe4913a1f67f9717d2b9c4ea276a11f3b250a85799c0445646242433b"
+        }
+      },
+      "result": {
+        "sha256": "d2892fffe4913a1f67f9717d2b9c4ea276a11f3b250a85799c0445646242433b",
+        "git_blob": "f7b4c47cba0a32e104eaca02a0df225e062035ce",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/01005270232F2000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f91bbaa45b2428552b4dd2582ccbc15003bed0d8",
+          "mode": "100644",
+          "sha256": "16d8be03c825a58fc7a1e1853ec1c5c1171c44f7a9636eeae2f9db54782f4551"
+        },
+        "touch": {
+          "git_blob": "f91bbaa45b2428552b4dd2582ccbc15003bed0d8",
+          "mode": "100644",
+          "sha256": "16d8be03c825a58fc7a1e1853ec1c5c1171c44f7a9636eeae2f9db54782f4551"
+        },
+        "upstream": {
+          "git_blob": "495d0a0a96ad902e2c642c40a821cbc71cfdaa8a",
+          "mode": "100644",
+          "sha256": "f59f42dd0596695ff91871d335c499e96c10cca536add1e1a8e6ae452edeaabc"
+        }
+      },
+      "result": {
+        "sha256": "f59f42dd0596695ff91871d335c499e96c10cca536add1e1a8e6ae452edeaabc",
+        "git_blob": "495d0a0a96ad902e2c642c40a821cbc71cfdaa8a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/01005270232F2000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "b364fe0fd447ebf7cab5f0a712871268922c6412",
+          "mode": "100644",
+          "sha256": "488591814fd05ec622983f061c60cbc64d34dd6cc88d2a6930b37f69e52273e3"
+        },
+        "touch": {
+          "git_blob": "b364fe0fd447ebf7cab5f0a712871268922c6412",
+          "mode": "100644",
+          "sha256": "488591814fd05ec622983f061c60cbc64d34dd6cc88d2a6930b37f69e52273e3"
+        },
+        "upstream": {
+          "git_blob": "148ac90306200d9bf7ef1be33dc371bf171a0476",
+          "mode": "100644",
+          "sha256": "994477bfd3035e1b8dc35d0054ba74921f8960e989a46cc8a2696645732e8c2f"
+        }
+      },
+      "result": {
+        "sha256": "994477bfd3035e1b8dc35d0054ba74921f8960e989a46cc8a2696645732e8c2f",
+        "git_blob": "148ac90306200d9bf7ef1be33dc371bf171a0476",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/01005270232F2000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "9c48faa2a2274e4ea6fd1500ccb6d2e23188d39f",
+          "mode": "100644",
+          "sha256": "ee3f4b32f5a30ebcfef93537bec4963b913ac3e9bde2c3b96e7d36bb7016fa84"
+        },
+        "touch": {
+          "git_blob": "9c48faa2a2274e4ea6fd1500ccb6d2e23188d39f",
+          "mode": "100644",
+          "sha256": "ee3f4b32f5a30ebcfef93537bec4963b913ac3e9bde2c3b96e7d36bb7016fa84"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/010057D006492000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "346d9f28818cc2b493f326aeab03e765658a1c85",
+          "mode": "100644",
+          "sha256": "ed1244aa763688d574398c2b2519ab226647cb0344a6abebeae8bcb084512850"
+        },
+        "touch": {
+          "git_blob": "346d9f28818cc2b493f326aeab03e765658a1c85",
+          "mode": "100644",
+          "sha256": "ed1244aa763688d574398c2b2519ab226647cb0344a6abebeae8bcb084512850"
+        },
+        "upstream": {
+          "git_blob": "375aab341efed726d101c04a48d971ac03daaa32",
+          "mode": "100644",
+          "sha256": "a4af637208809fa996b12ba5f53b542ed863de924c4239bddccafcde4c1fecbb"
+        }
+      },
+      "result": {
+        "sha256": "a4af637208809fa996b12ba5f53b542ed863de924c4239bddccafcde4c1fecbb",
+        "git_blob": "375aab341efed726d101c04a48d971ac03daaa32",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100606026F12000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "b4a99cea3b55ecdbc1648f44667e31fc46242c13",
+          "mode": "100644",
+          "sha256": "ba927d3ae5a2ab482d64f4540a8c781e1abb840dbd44a3e56691304cb905d949"
+        },
+        "touch": {
+          "git_blob": "b4a99cea3b55ecdbc1648f44667e31fc46242c13",
+          "mode": "100644",
+          "sha256": "ba927d3ae5a2ab482d64f4540a8c781e1abb840dbd44a3e56691304cb905d949"
+        },
+        "upstream": {
+          "git_blob": "50797beec2a7733d11b04dfbadafbc71abc4b55f",
+          "mode": "100644",
+          "sha256": "978a8c8fa8e0ed2309eeebda1bc857d27ad1cfc1ba92c05c096f3f152a3bae23"
+        }
+      },
+      "result": {
+        "sha256": "978a8c8fa8e0ed2309eeebda1bc857d27ad1cfc1ba92c05c096f3f152a3bae23",
+        "git_blob": "50797beec2a7733d11b04dfbadafbc71abc4b55f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100606026F12000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "e87a49a53bdb3c58ebd760f6ef647686af3a4465",
+          "mode": "100644",
+          "sha256": "74a1e0b48a2e108de93b99eaf94b93cef21965b1166b7c1aa95e4d6be526b31c"
+        },
+        "touch": {
+          "git_blob": "e87a49a53bdb3c58ebd760f6ef647686af3a4465",
+          "mode": "100644",
+          "sha256": "74a1e0b48a2e108de93b99eaf94b93cef21965b1166b7c1aa95e4d6be526b31c"
+        },
+        "upstream": {
+          "git_blob": "d6cd05d690c663237fdecff567601679a23f5ed9",
+          "mode": "100644",
+          "sha256": "f1cd318fa08da55d4fee15672bc81c0a3a567a8abc58f611f11e58bd227025a5"
+        }
+      },
+      "result": {
+        "sha256": "f1cd318fa08da55d4fee15672bc81c0a3a567a8abc58f611f11e58bd227025a5",
+        "git_blob": "d6cd05d690c663237fdecff567601679a23f5ed9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100606026F12000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "6f3b9bb36f62f49787c5d14bae6f829a278e1a95",
+          "mode": "100644",
+          "sha256": "e2a0db3c7dfbdd130c69b6ac3c1b3278303a75f59e7a8e851e2cb255a8c616b1"
+        },
+        "touch": {
+          "git_blob": "6f3b9bb36f62f49787c5d14bae6f829a278e1a95",
+          "mode": "100644",
+          "sha256": "e2a0db3c7dfbdd130c69b6ac3c1b3278303a75f59e7a8e851e2cb255a8c616b1"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/010069C01AB82000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "5eb3400b42ec51d15e5d1b6f7b9fc010a3ed8dfe",
+          "mode": "100644",
+          "sha256": "d12e1e50270719e2c50868bbf721d5becbf056f6467ada51dc0ff76c577638a7"
+        },
+        "touch": {
+          "git_blob": "5eb3400b42ec51d15e5d1b6f7b9fc010a3ed8dfe",
+          "mode": "100644",
+          "sha256": "d12e1e50270719e2c50868bbf721d5becbf056f6467ada51dc0ff76c577638a7"
+        },
+        "upstream": {
+          "git_blob": "2431211ab5349a41ab1d61e5deea28316a31af2d",
+          "mode": "100644",
+          "sha256": "bcc2f3c9aeeb0a68a38c02ddb344f8e9ea5806b074fe8fe94d4bce7629a56576"
+        }
+      },
+      "result": {
+        "sha256": "bcc2f3c9aeeb0a68a38c02ddb344f8e9ea5806b074fe8fe94d4bce7629a56576",
+        "git_blob": "2431211ab5349a41ab1d61e5deea28316a31af2d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010069C01AB82000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "0c98c5076fc62792d3f43bfe2e67bd13169ea25e",
+          "mode": "100644",
+          "sha256": "97e2e2e7f64918276545fc96d0a91ac26152823e5fc255253afbf86505acf57e"
+        },
+        "touch": {
+          "git_blob": "0c98c5076fc62792d3f43bfe2e67bd13169ea25e",
+          "mode": "100644",
+          "sha256": "97e2e2e7f64918276545fc96d0a91ac26152823e5fc255253afbf86505acf57e"
+        },
+        "upstream": {
+          "git_blob": "6854230794833e1d75459bf79bdbd713bcf6e726",
+          "mode": "100644",
+          "sha256": "1dca9778e01745f32eefed285732cbd77e51a09f46e42fba8410a6ad4e2f90f5"
+        }
+      },
+      "result": {
+        "sha256": "1dca9778e01745f32eefed285732cbd77e51a09f46e42fba8410a6ad4e2f90f5",
+        "git_blob": "6854230794833e1d75459bf79bdbd713bcf6e726",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010069C01AB82000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "c2101cb1eddecc7b8d02944a4d149af6e5502fb4",
+          "mode": "100644",
+          "sha256": "7e64544b86e807e81c8d752cbd827af7305390263318c173fd6a485461898ad5"
+        },
+        "touch": {
+          "git_blob": "c2101cb1eddecc7b8d02944a4d149af6e5502fb4",
+          "mode": "100644",
+          "sha256": "7e64544b86e807e81c8d752cbd827af7305390263318c173fd6a485461898ad5"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/01006C300E9F0000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "3d239ce5c7f0a4ce41c3b5bf68504a361d31c0c4",
+          "mode": "100644",
+          "sha256": "758d5cd0aea948c741c57d648809bbca4f99a980392b3cbfde524949f33adddf"
+        },
+        "touch": {
+          "git_blob": "3d239ce5c7f0a4ce41c3b5bf68504a361d31c0c4",
+          "mode": "100644",
+          "sha256": "758d5cd0aea948c741c57d648809bbca4f99a980392b3cbfde524949f33adddf"
+        },
+        "upstream": {
+          "git_blob": "583fb96e8adbe778ab495aa0f4d6ded6479c2bda",
+          "mode": "100644",
+          "sha256": "6ff40d5c8b5e9a38b701b8d2d09b867180596b42ae286bb169a23d56f035aa43"
+        }
+      },
+      "result": {
+        "sha256": "6ff40d5c8b5e9a38b701b8d2d09b867180596b42ae286bb169a23d56f035aa43",
+        "git_blob": "583fb96e8adbe778ab495aa0f4d6ded6479c2bda",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/01007EF00011E000/README.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "f2e46669fb32a1a4a26a48fb3c609ede4900a28e",
+          "mode": "100644",
+          "sha256": "ba500e747ebc42f043b0b496c52f40bd08fd79ec87b1c804981b4c5e3f48ae37"
+        },
+        "touch": {
+          "git_blob": "b763782dbb670e17c895cdb2de6132cc43d6b366",
+          "mode": "100644",
+          "sha256": "55f65e8a9599729c62df18d2e1288c9fbc7ffebe662adcd0bfd6c6881e5e675b"
+        },
+        "upstream": {
+          "git_blob": "85625ecdc495724cb5c5e60ae37b70eb16e09e94",
+          "mode": "100644",
+          "sha256": "a283fe7c47fb32547b0d55c2eb928f09b50c23c238e5fd6a74677bfa32fb8c03"
+        }
+      },
+      "result": {
+        "sha256": "9d5da1ade9687d5d1bfdf3a8e4ee6318cb4aeeafe563f5b5ef9099fb6078d4eb",
+        "git_blob": "80603a08335560873f86f196231f5fab5b80d175",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/010093801237C000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "42f495edb6b9d635bf9d79e330f52e34094bfabd",
+          "mode": "100644",
+          "sha256": "5047bb10911639bb21ef46d9e2522e36257c4a9052ccdcc0d218f748df75f8d2"
+        },
+        "touch": {
+          "git_blob": "42f495edb6b9d635bf9d79e330f52e34094bfabd",
+          "mode": "100644",
+          "sha256": "5047bb10911639bb21ef46d9e2522e36257c4a9052ccdcc0d218f748df75f8d2"
+        },
+        "upstream": {
+          "git_blob": "469af9b68dfd487783cc1611095ce81a25d13978",
+          "mode": "100644",
+          "sha256": "70142871752f3642fa3a9d9055bb904700141fa920a8845390dc9606db11e2a9"
+        }
+      },
+      "result": {
+        "sha256": "70142871752f3642fa3a9d9055bb904700141fa920a8845390dc9606db11e2a9",
+        "git_blob": "469af9b68dfd487783cc1611095ce81a25d13978",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100A3501946E000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "332eb7b1b6cd414cc5b05403fd06d3dfdaa85ece",
+          "mode": "100644",
+          "sha256": "646068f9a6da24219341e92aa4a990962e2b9ad81ea23ac26ef47db24888b6ff"
+        },
+        "touch": {
+          "git_blob": "332eb7b1b6cd414cc5b05403fd06d3dfdaa85ece",
+          "mode": "100644",
+          "sha256": "646068f9a6da24219341e92aa4a990962e2b9ad81ea23ac26ef47db24888b6ff"
+        },
+        "upstream": {
+          "git_blob": "8ab533c16865317793284ded949ff4dedf5b4778",
+          "mode": "100644",
+          "sha256": "9152a71565df2c3a7233212c9d6d641c1ddaca67e7761e1930193700ad113149"
+        }
+      },
+      "result": {
+        "sha256": "9152a71565df2c3a7233212c9d6d641c1ddaca67e7761e1930193700ad113149",
+        "git_blob": "8ab533c16865317793284ded949ff4dedf5b4778",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100A3501946E000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "986412b5b2d0475bc1970aa89006e818807ba2bc",
+          "mode": "100644",
+          "sha256": "9317ca83f3a9896a0d51a2c5c93d48efeec64b2eacedfe526e833af1af2c3d4a"
+        },
+        "touch": {
+          "git_blob": "986412b5b2d0475bc1970aa89006e818807ba2bc",
+          "mode": "100644",
+          "sha256": "9317ca83f3a9896a0d51a2c5c93d48efeec64b2eacedfe526e833af1af2c3d4a"
+        },
+        "upstream": {
+          "git_blob": "476428e5fb1fc9f9d5168ca3960ff1d660319c93",
+          "mode": "100644",
+          "sha256": "86c7bfaa291d81e961201ce395184009b72931ddcf86b856611c254002c6521e"
+        }
+      },
+      "result": {
+        "sha256": "86c7bfaa291d81e961201ce395184009b72931ddcf86b856611c254002c6521e",
+        "git_blob": "476428e5fb1fc9f9d5168ca3960ff1d660319c93",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100A3501946E000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f767e14e0f336c2808158b27d47ac3bde7827077",
+          "mode": "100644",
+          "sha256": "7d549bbdcfbf9dc95a27ae51cc03dfdfdff6bf3b6643ab15da133958cf12a42d"
+        },
+        "touch": {
+          "git_blob": "f767e14e0f336c2808158b27d47ac3bde7827077",
+          "mode": "100644",
+          "sha256": "7d549bbdcfbf9dc95a27ae51cc03dfdfdff6bf3b6643ab15da133958cf12a42d"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/0100A9D01C446000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "84b7fb98bba266a4b0096f582dffd62ea11b24fd",
+          "mode": "100644",
+          "sha256": "99083e5c266d41aacf0b6532439f768f3459e1dbc41527145d8516df34c058bf"
+        },
+        "touch": {
+          "git_blob": "84b7fb98bba266a4b0096f582dffd62ea11b24fd",
+          "mode": "100644",
+          "sha256": "99083e5c266d41aacf0b6532439f768f3459e1dbc41527145d8516df34c058bf"
+        },
+        "upstream": {
+          "git_blob": "5436484b3b77802154831e5463e4db633b4dd9cd",
+          "mode": "100644",
+          "sha256": "baee69eb16d93eab66ce027cac337d5a653853de1bb88c98fffd2d31841add5d"
+        }
+      },
+      "result": {
+        "sha256": "baee69eb16d93eab66ce027cac337d5a653853de1bb88c98fffd2d31841add5d",
+        "git_blob": "5436484b3b77802154831e5463e4db633b4dd9cd",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100A9D01C446000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "652d07a4037687af9d2137dfc688a40ddaf01440",
+          "mode": "100644",
+          "sha256": "419ee0f40e649dbccbbc70c12af70f23a4c7611b795b47bb34a940d43765d39b"
+        },
+        "touch": {
+          "git_blob": "652d07a4037687af9d2137dfc688a40ddaf01440",
+          "mode": "100644",
+          "sha256": "419ee0f40e649dbccbbc70c12af70f23a4c7611b795b47bb34a940d43765d39b"
+        },
+        "upstream": {
+          "git_blob": "80152fa01e3cb8e4b17442fa163223c5cdbdd6e5",
+          "mode": "100644",
+          "sha256": "e3165bf3168841bd16503d7348e296e3092d775174321f176635d695a37405b9"
+        }
+      },
+      "result": {
+        "sha256": "e3165bf3168841bd16503d7348e296e3092d775174321f176635d695a37405b9",
+        "git_blob": "80152fa01e3cb8e4b17442fa163223c5cdbdd6e5",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100A9D01C446000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "435ed7e4538b49a57851c8a3f009adc97d36bed2",
+          "mode": "100644",
+          "sha256": "318aabe4809050bf58e4dc9f28942209692ee9b4d65e32ad7de1119954664928"
+        },
+        "touch": {
+          "git_blob": "435ed7e4538b49a57851c8a3f009adc97d36bed2",
+          "mode": "100644",
+          "sha256": "318aabe4809050bf58e4dc9f28942209692ee9b4d65e32ad7de1119954664928"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/0100B7C00933A000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "18050bd3f320288b4a71ec75eacf90456ded28d1",
+          "mode": "100644",
+          "sha256": "f61b853e6767e9c7e079a95a901fadb4e202a4c378cb87f9a3d54a04b60ac682"
+        },
+        "touch": {
+          "git_blob": "18050bd3f320288b4a71ec75eacf90456ded28d1",
+          "mode": "100644",
+          "sha256": "f61b853e6767e9c7e079a95a901fadb4e202a4c378cb87f9a3d54a04b60ac682"
+        },
+        "upstream": {
+          "git_blob": "708aff6cb36fac585b3629c9e27ca762ab978015",
+          "mode": "100644",
+          "sha256": "1ad63998e230769de08e04fc76e936c2a646a2a8a732b9269d4e8d11e3f4697b"
+        }
+      },
+      "result": {
+        "sha256": "1ad63998e230769de08e04fc76e936c2a646a2a8a732b9269d4e8d11e3f4697b",
+        "git_blob": "708aff6cb36fac585b3629c9e27ca762ab978015",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100B7C00933A000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "e70b34ae49209e668b3e177b5a2f55f86c665064",
+          "mode": "100644",
+          "sha256": "70a7a6020ee52fd72bed3994a5fa6cd3785b5baf677033285afdbc78e96343a7"
+        },
+        "touch": {
+          "git_blob": "e70b34ae49209e668b3e177b5a2f55f86c665064",
+          "mode": "100644",
+          "sha256": "70a7a6020ee52fd72bed3994a5fa6cd3785b5baf677033285afdbc78e96343a7"
+        },
+        "upstream": {
+          "git_blob": "6c077c1f26d92a67bf1308595c54793c475f059b",
+          "mode": "100644",
+          "sha256": "811f486f36b29356ee876583604f840794b7e4f4331034996165f11873ff63b4"
+        }
+      },
+      "result": {
+        "sha256": "811f486f36b29356ee876583604f840794b7e4f4331034996165f11873ff63b4",
+        "git_blob": "6c077c1f26d92a67bf1308595c54793c475f059b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100B7C00933A000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "bc2f3aabdb0b86b583928240ef1ff9fa938c31b2",
+          "mode": "100644",
+          "sha256": "9253d89f1aee19f6acb2fc29877c1762c6b6b75538e24f6a29ca8c509e9d1500"
+        },
+        "touch": {
+          "git_blob": "bc2f3aabdb0b86b583928240ef1ff9fa938c31b2",
+          "mode": "100644",
+          "sha256": "9253d89f1aee19f6acb2fc29877c1762c6b6b75538e24f6a29ca8c509e9d1500"
+        },
+        "upstream": {
+          "git_blob": "d455c53c781099f5a285bd088106f73b4fe9fcd3",
+          "mode": "100644",
+          "sha256": "3f4492a1ceb0304e0e27be7f2038633a0ca2fedcca60342d8e9f1062d01b780c"
+        }
+      },
+      "result": {
+        "sha256": "3f4492a1ceb0304e0e27be7f2038633a0ca2fedcca60342d8e9f1062d01b780c",
+        "git_blob": "d455c53c781099f5a285bd088106f73b4fe9fcd3",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100B8A026F14000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "26d791711ba2cd75d72324d6dcc6528c079d5f39",
+          "mode": "100644",
+          "sha256": "447621ff64d14c58a226d1f4b5e6f98de4f5dc5baa3bc0ce83e8659accb70076"
+        },
+        "touch": {
+          "git_blob": "26d791711ba2cd75d72324d6dcc6528c079d5f39",
+          "mode": "100644",
+          "sha256": "447621ff64d14c58a226d1f4b5e6f98de4f5dc5baa3bc0ce83e8659accb70076"
+        },
+        "upstream": {
+          "git_blob": "f0959e7fb8d1849e05426f2eb39246dde8aa2a1c",
+          "mode": "100644",
+          "sha256": "15eedacfba018a290c76f67753f037bc1c9ce775030f10a802b6f67db6fc7c47"
+        }
+      },
+      "result": {
+        "sha256": "15eedacfba018a290c76f67753f037bc1c9ce775030f10a802b6f67db6fc7c47",
+        "git_blob": "f0959e7fb8d1849e05426f2eb39246dde8aa2a1c",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100B8A026F14000/game.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "d71c38708a3ed16c636c82bdba6c5373ca998be6",
+          "mode": "100644",
+          "sha256": "07a72532cb54453e2918c87ce3734ef2dfafe1a8176f75cd88c30210b965f1d7"
+        },
+        "touch": {
+          "git_blob": "d71c38708a3ed16c636c82bdba6c5373ca998be6",
+          "mode": "100644",
+          "sha256": "07a72532cb54453e2918c87ce3734ef2dfafe1a8176f75cd88c30210b965f1d7"
+        },
+        "upstream": {
+          "git_blob": "da8dbe3dff7379b76e55e8638a07b19de9bb68c9",
+          "mode": "100644",
+          "sha256": "ecee712c5efeea5a56f16fa7e9910e2dc4cc776c585b76f6f425c7c4a76f51ef"
+        }
+      },
+      "result": {
+        "sha256": "ecee712c5efeea5a56f16fa7e9910e2dc4cc776c585b76f6f425c7c4a76f51ef",
+        "git_blob": "da8dbe3dff7379b76e55e8638a07b19de9bb68c9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/0100B8A026F14000/patches.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "a69f7e1d6aad2f587da58bf69fb1ba9d2e014e6d",
+          "mode": "100644",
+          "sha256": "92ba19566f806adebc1fb1f992fbb038f2076c5c8c51f738925197da49f8686f"
+        },
+        "touch": {
+          "git_blob": "a69f7e1d6aad2f587da58bf69fb1ba9d2e014e6d",
+          "mode": "100644",
+          "sha256": "92ba19566f806adebc1fb1f992fbb038f2076c5c8c51f738925197da49f8686f"
+        },
+        "upstream": null
+      },
+      "result": null
+    },
+    {
+      "path": "dm/games/0100BC300CB48000/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "342e44172322dba3db4dc3b73e0d144a0f1c60b0",
+          "mode": "100644",
+          "sha256": "a732e48891e69e3c6379696f2ceaf9cc84b8d4fe4ad8b65271383132387def4d"
+        },
+        "touch": {
+          "git_blob": "342e44172322dba3db4dc3b73e0d144a0f1c60b0",
+          "mode": "100644",
+          "sha256": "a732e48891e69e3c6379696f2ceaf9cc84b8d4fe4ad8b65271383132387def4d"
+        },
+        "upstream": {
+          "git_blob": "3afc9214c22231371fc652a8fb8e6730bc407e62",
+          "mode": "100644",
+          "sha256": "c454e48ddf1f1e867222bf1936b280527df45fe24ac70746ec23672a1e1a6e9f"
+        }
+      },
+      "result": {
+        "sha256": "c454e48ddf1f1e867222bf1936b280527df45fe24ac70746ec23672a1e1a6e9f",
+        "git_blob": "3afc9214c22231371fc652a8fb8e6730bc407e62",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/README.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "5178c7ce102b3e685cf93980b5e34d7e67dac6bd",
+          "mode": "100644",
+          "sha256": "7d812a54babda5c034515f0581b91a279562233b1cee9f3912ce87284318ffb2"
+        },
+        "touch": {
+          "git_blob": "561144ed8354749282b1ce1b7874eb845d914a08",
+          "mode": "100644",
+          "sha256": "a5cb68b5f5e97be8eb48ac422ca389dd1967fec8f48c741f26f72a3581a65f47"
+        },
+        "upstream": {
+          "git_blob": "15c2886f15ec3230d9bc987c3792679628632a1a",
+          "mode": "100644",
+          "sha256": "ef290b13f746f50ee02371c92b35683cd2d3fb69875f72d9937e5bdd5fbdf33b"
+        }
+      },
+      "result": {
+        "sha256": "0d5a1da526e2d6776818b63c5d2f8b6e931dba91be8cc97b386e7033c47fe9b5",
+        "git_blob": "601b88ca1ac4cb2dc746416a1a66f5888a27e27f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/game.py",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "6c66ba1e6fafe3e525df576cc0038a56d72407d9",
+          "mode": "100644",
+          "sha256": "18f9a08aa0c42e4047a9e8422fb3bd3668bba14b95582784ed4496c5e7b92090"
+        },
+        "touch": {
+          "git_blob": "be071db3ada1c042e3065064c484d17e60249034",
+          "mode": "100644",
+          "sha256": "bf9a3fa984b5cdf2f1378bd9b4cf4b855f9f9eb872db8f33226c768350c1bfad"
+        },
+        "upstream": {
+          "git_blob": "5d04719acaa7a6d44dd0c9b895520828cc81c937",
+          "mode": "100644",
+          "sha256": "ce7a12e0c8ec450572db4ec9958702f184b41c3ae5572ea485d91f10adb851cb"
+        }
+      },
+      "result": {
+        "sha256": "a49c2c2e30e7bbed098f0ec6b414c8d5eccdce4677a2362ecfffa28f0477aa77",
+        "git_blob": "bdebc796f3d7d1d49e1fa188645770172150aa61",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/games/profile_guess.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "575fc194e7237dc2ff8b2f5e15ea1628945b233b",
+          "mode": "100644",
+          "sha256": "733738cc4c7d551715376d5efc360eff1fce6a70bf29840862a40a42d2cac360"
+        },
+        "touch": {
+          "git_blob": "575fc194e7237dc2ff8b2f5e15ea1628945b233b",
+          "mode": "100644",
+          "sha256": "733738cc4c7d551715376d5efc360eff1fce6a70bf29840862a40a42d2cac360"
+        },
+        "upstream": {
+          "git_blob": "e1ddef40fcffee3904659736bed4e403fed5d8e0",
+          "mode": "100644",
+          "sha256": "b2d2fa487c8f30ffa4e9c3b0135a28bb7eb4afc4bb10e4c6062f97d18238aa60"
+        }
+      },
+      "result": {
+        "sha256": "b2d2fa487c8f30ffa4e9c3b0135a28bb7eb4afc4bb10e4c6062f97d18238aa60",
+        "git_blob": "e1ddef40fcffee3904659736bed4e403fed5d8e0",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/nvn/nvn_mtl.m",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "6bbb06d6a6d7401c284676c2bbe5534ec036ecbc",
+          "mode": "100644",
+          "sha256": "952ea13eef07de4f6d798356de8b10cba6099bcd1046e036c545239ade820c8f"
+        },
+        "touch": {
+          "git_blob": "4e19382d132f750f567c43cbe4b647c6ca4ed9e4",
+          "mode": "100644",
+          "sha256": "5235e27091ad1e869eed932b6e6ed7ef3e36d55f387e73368ce4297b0cdf6296"
+        },
+        "upstream": {
+          "git_blob": "036b72e0daab444502cfcabc4578d7bb06194df3",
+          "mode": "100644",
+          "sha256": "4111355e68794ba9989dfe85e93545c902991bce1c53fcfab0dc4233bde94ef4"
+        }
+      },
+      "result": {
+        "sha256": "11b424694422eb403c9b45ccca956f1d99fd9d261bd5222a4f97b48189a10285",
+        "git_blob": "56b5f5e87cb749a47138a6f64d2e2292ad3b3539",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/nvn/nvn_refl.m",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "35d2a886c0d25e1d9ce391f8e7772fb4913ed60a",
+          "mode": "100644",
+          "sha256": "7854f7564c62fc5ffdc0803ffef4e5a22e03bdff1c93c54bf4d76514aa36e26b"
+        },
+        "touch": {
+          "git_blob": "35d2a886c0d25e1d9ce391f8e7772fb4913ed60a",
+          "mode": "100644",
+          "sha256": "7854f7564c62fc5ffdc0803ffef4e5a22e03bdff1c93c54bf4d76514aa36e26b"
+        },
+        "upstream": {
+          "git_blob": "8476ffd233afa1c5f0cca74cfb2a31261abb67fc",
+          "mode": "100644",
+          "sha256": "322b9d63211de1fb5d841dd2a3210b711bd5050bca1b4b977decbf892b80e3fe"
+        }
+      },
+      "result": {
+        "sha256": "322b9d63211de1fb5d841dd2a3210b711bd5050bca1b4b977decbf892b80e3fe",
+        "git_blob": "8476ffd233afa1c5f0cca74cfb2a31261abb67fc",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tests/Makefile",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "a416e166c61f2b2ba440befe9a7fa5f7e577617c",
+          "mode": "100644",
+          "sha256": "c65fa9b685f90564aa7fbaa950d6715c6055137b8ffc339330f13d505ab89b87"
+        },
+        "touch": {
+          "git_blob": "de72aabd1d5dcb3538b8f39b8711c36d6f998494",
+          "mode": "100644",
+          "sha256": "ba6704c166e2e15c7c2af6250162fe7b575a241361eafe8abb752ff5cc17add1"
+        },
+        "upstream": {
+          "git_blob": "e87a3c01c17cf577d72e54203208b1fd218e973f",
+          "mode": "100644",
+          "sha256": "ecbadc22d96d695cd223f9ef11c12d9ecc9f271d12625d57356947593e5f94cd"
+        }
+      },
+      "result": {
+        "sha256": "05e5be24acb12064d0ba7e7825bb82bd45c2d974478a699bd802d3ba2456608b",
+        "git_blob": "dc02d6d775ce5ca7c0cec4ca3d999a2aeea4f090",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tests/t_ms_slot.m",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "e4e03775defa9e63adf8ce8913c9171cda963592",
+          "mode": "100644",
+          "sha256": "0e1b4437916c443fc45323383c95e2c7c45cc184b99f0e7f7c9868d56ecb656f"
+        }
+      },
+      "result": {
+        "sha256": "0e1b4437916c443fc45323383c95e2c7c45cc184b99f0e7f7c9868d56ecb656f",
+        "git_blob": "e4e03775defa9e63adf8ce8913c9171cda963592",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tex/README.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "8b544bfe6bd90402c61cc8f541150de19ba01a71",
+          "mode": "100644",
+          "sha256": "9a34ba0ad0b69d78cc0c6d5fff0e9d1dddcbd734d462589fab0832087ccf607c"
+        },
+        "touch": {
+          "git_blob": "8b544bfe6bd90402c61cc8f541150de19ba01a71",
+          "mode": "100644",
+          "sha256": "9a34ba0ad0b69d78cc0c6d5fff0e9d1dddcbd734d462589fab0832087ccf607c"
+        },
+        "upstream": {
+          "git_blob": "1968759df0a1fc6e35afd4c1213807c146482180",
+          "mode": "100644",
+          "sha256": "8503f61526cfcebf8c054ab884b77d89e78dfc689f8ace75b36804e43a999d2a"
+        }
+      },
+      "result": {
+        "sha256": "8503f61526cfcebf8c054ab884b77d89e78dfc689f8ace75b36804e43a999d2a",
+        "git_blob": "1968759df0a1fc6e35afd4c1213807c146482180",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tex/nvn_fmt_mtl.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "59a3bd1a432ce406dcf300f63f32fe2076677fcb",
+          "mode": "100644",
+          "sha256": "e01dad3248973a891d5b65e66820c03cfa189177ba77f0e4391d5f2870bc697c"
+        },
+        "touch": {
+          "git_blob": "59a3bd1a432ce406dcf300f63f32fe2076677fcb",
+          "mode": "100644",
+          "sha256": "e01dad3248973a891d5b65e66820c03cfa189177ba77f0e4391d5f2870bc697c"
+        },
+        "upstream": {
+          "git_blob": "5769a275cfdfe31f7f00738f8b2b72dc89574803",
+          "mode": "100644",
+          "sha256": "24f4c74bc782e2ace3a8abd317cb2eb9e2a9eb0ea42ffa9e01868868fe76201d"
+        }
+      },
+      "result": {
+        "sha256": "24f4c74bc782e2ace3a8abd317cb2eb9e2a9eb0ea42ffa9e01868868fe76201d",
+        "git_blob": "5769a275cfdfe31f7f00738f8b2b72dc89574803",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tex/tests/.gitignore",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "c0a6a3da377b5301b6d8eea1fc869f0401b9a5b9",
+          "mode": "100644",
+          "sha256": "4f2235a5010429e409836e7bad941bb1b6b409d20da77afda8b93670293c702d"
+        },
+        "touch": {
+          "git_blob": "c0a6a3da377b5301b6d8eea1fc869f0401b9a5b9",
+          "mode": "100644",
+          "sha256": "4f2235a5010429e409836e7bad941bb1b6b409d20da77afda8b93670293c702d"
+        },
+        "upstream": {
+          "git_blob": "ad72cd1787cf047ae201e8eee4ed134e72e10442",
+          "mode": "100644",
+          "sha256": "1ad350c2ee51b39661b18de10cd43c94e747f9a44f590e24c673091a389f212e"
+        }
+      },
+      "result": {
+        "sha256": "1ad350c2ee51b39661b18de10cd43c94e747f9a44f590e24c673091a389f212e",
+        "git_blob": "ad72cd1787cf047ae201e8eee4ed134e72e10442",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tex/tests/Makefile",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f163472600c5932c4c7503f51530126453201efe",
+          "mode": "100644",
+          "sha256": "9c8835827a94573cf7f299aa560b2dfd514759a6dbf5b634541631b4ceb2befd"
+        },
+        "touch": {
+          "git_blob": "f163472600c5932c4c7503f51530126453201efe",
+          "mode": "100644",
+          "sha256": "9c8835827a94573cf7f299aa560b2dfd514759a6dbf5b634541631b4ceb2befd"
+        },
+        "upstream": {
+          "git_blob": "feed9f8ecc97cb89480442a57069e8fbcee0147a",
+          "mode": "100644",
+          "sha256": "17f3e0752db47320c6b158f85bd5f5378e6ba6fbdf17b828349f19ae364a8227"
+        }
+      },
+      "result": {
+        "sha256": "17f3e0752db47320c6b158f85bd5f5378e6ba6fbdf17b828349f19ae364a8227",
+        "git_blob": "feed9f8ecc97cb89480442a57069e8fbcee0147a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/gfx/tools/own_compilers.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "24f4c08d32131bd6dc7cd5f2063d98bb12a7ac1c",
+          "mode": "100644",
+          "sha256": "900b62a2629cca44f40b27f8f05d98c16d2ca2ef41700dfda6ad7ef05e6a1084"
+        },
+        "touch": {
+          "git_blob": "24f4c08d32131bd6dc7cd5f2063d98bb12a7ac1c",
+          "mode": "100644",
+          "sha256": "900b62a2629cca44f40b27f8f05d98c16d2ca2ef41700dfda6ad7ef05e6a1084"
+        },
+        "upstream": {
+          "git_blob": "fc0a062d5dac040a11eeaaf7df43b0a38cc62e19",
+          "mode": "100644",
+          "sha256": "0f4bf9e8d618150814745957f620628f968255e36fbf778a237f14a0eff5753b"
+        }
+      },
+      "result": {
+        "sha256": "0f4bf9e8d618150814745957f620628f968255e36fbf778a237f14a0eff5753b",
+        "git_blob": "fc0a062d5dac040a11eeaaf7df43b0a38cc62e19",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/dm.h",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "533322805238176927c4dd0ee47ebdd8b8601302",
+          "mode": "100644",
+          "sha256": "f4282119e6a5026d45bf189a66ecc7be7ea5c3ff31f45f64ca087b80ce2269cc"
+        },
+        "touch": {
+          "git_blob": "4268207aea6137373ace2ad7c23820edbb90ba5b",
+          "mode": "100644",
+          "sha256": "c468f9e3f4078455fc9731532974e1d745d5e37a92e3b774800b6df3f54038c5"
+        },
+        "upstream": {
+          "git_blob": "eb31b4ed2508d3cea74c8226a4c206b3d59f72ed",
+          "mode": "100644",
+          "sha256": "8e231a3f2f5822ca65b28daafdbba330b060027cf0776e6fe0baba2c3c36d81c"
+        }
+      },
+      "result": {
+        "sha256": "f19eb3a964db03ff935bdd901c8b08e95286b3e2001a61d9c184991f6d7bd81f",
+        "git_blob": "f96642e0a58b7f2662d8981e9c312c26dec0ad30",
+        "mode": "100644"
+      },
+      "resolution": "Preserve nested-observer entry/leave APIs and all BOTW observation IDs; update the OBS_UE_MALLOC description for upstream engine-wide constructor discovery."
+    },
+    {
+      "path": "dm/host/hle_fpslock.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "a767e88f1f891856a1a82474ee1f59be6c3feda1",
+          "mode": "100644",
+          "sha256": "aede8a938ab273aa2ec16ea1c8c2dc0b5e6306cf5dee435fede665647e710d52"
+        },
+        "touch": {
+          "git_blob": "a767e88f1f891856a1a82474ee1f59be6c3feda1",
+          "mode": "100644",
+          "sha256": "aede8a938ab273aa2ec16ea1c8c2dc0b5e6306cf5dee435fede665647e710d52"
+        },
+        "upstream": {
+          "git_blob": "b2d07fbabb11828463aee7ed81d87fa1f7a6e32f",
+          "mode": "100644",
+          "sha256": "154d102aca0299ac903b26a7735e5956a1d4cec8b94bbf6fe3196c75d3d57e30"
+        }
+      },
+      "result": {
+        "sha256": "154d102aca0299ac903b26a7735e5956a1d4cec8b94bbf6fe3196c75d3d57e30",
+        "git_blob": "b2d07fbabb11828463aee7ed81d87fa1f7a6e32f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/hle_movie.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "239c4161dc0887ba1297e4cece8190259f02c7db",
+          "mode": "100644",
+          "sha256": "2b421e8431a2d4c063633091ae1c143a6d92799b418cdf3a6c98d9b757d16200"
+        },
+        "touch": {
+          "git_blob": "239c4161dc0887ba1297e4cece8190259f02c7db",
+          "mode": "100644",
+          "sha256": "2b421e8431a2d4c063633091ae1c143a6d92799b418cdf3a6c98d9b757d16200"
+        },
+        "upstream": {
+          "git_blob": "d4d2289f1f5be8dc99ef4f4236d5ef2533dd1058",
+          "mode": "100644",
+          "sha256": "65e7c0b92e4b43b98479b671c26f35ae4faba472cdeac91310c5c643d7cce368"
+        }
+      },
+      "result": {
+        "sha256": "65e7c0b92e4b43b98479b671c26f35ae4faba472cdeac91310c5c643d7cce368",
+        "git_blob": "d4d2289f1f5be8dc99ef4f4236d5ef2533dd1058",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/hle_uecvar.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f26565fb788ee98838f9fd32499c3ef9a69ad85b",
+          "mode": "100644",
+          "sha256": "b4fa65b2ba15134afe06e3dca5b1a37866ec43563bacd36c7fd916d125de19d1"
+        },
+        "touch": {
+          "git_blob": "f26565fb788ee98838f9fd32499c3ef9a69ad85b",
+          "mode": "100644",
+          "sha256": "b4fa65b2ba15134afe06e3dca5b1a37866ec43563bacd36c7fd916d125de19d1"
+        },
+        "upstream": {
+          "git_blob": "e575d5f1a9bbdd49b04fa24dd84292292a26a7a8",
+          "mode": "100644",
+          "sha256": "67e174fff3c0b4da80011290661fad273b30a6cfe83884bfc70b4782c9727ba5"
+        }
+      },
+      "result": {
+        "sha256": "67e174fff3c0b4da80011290661fad273b30a6cfe83884bfc70b4782c9727ba5",
+        "git_blob": "e575d5f1a9bbdd49b04fa24dd84292292a26a7a8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/hle_uemalloc.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f263ce8599b2ab444ac393064be7939c0c163ba5",
+          "mode": "100644",
+          "sha256": "806ff1cf96b09738d56a50ba497483880f64a71ad736ee5738ecefde98248655"
+        },
+        "touch": {
+          "git_blob": "f263ce8599b2ab444ac393064be7939c0c163ba5",
+          "mode": "100644",
+          "sha256": "806ff1cf96b09738d56a50ba497483880f64a71ad736ee5738ecefde98248655"
+        },
+        "upstream": {
+          "git_blob": "e7c20b845021d0e3417d41fd277a84781d3543d0",
+          "mode": "100644",
+          "sha256": "e8916379ccd6dc981a74011239aba3d46f30e159a0cd33d347850ebe002f61f1"
+        }
+      },
+      "result": {
+        "sha256": "e8916379ccd6dc981a74011239aba3d46f30e159a0cd33d347850ebe002f61f1",
+        "git_blob": "e7c20b845021d0e3417d41fd277a84781d3543d0",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/loader.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "e0e890963e6de682006f8ad4dfe381794ebeaf71",
+          "mode": "100644",
+          "sha256": "f8b0d241163dc2b0650a07516f12ff91c4cbac9a807ad585fd45b76cd017dac3"
+        },
+        "touch": {
+          "git_blob": "e0e890963e6de682006f8ad4dfe381794ebeaf71",
+          "mode": "100644",
+          "sha256": "f8b0d241163dc2b0650a07516f12ff91c4cbac9a807ad585fd45b76cd017dac3"
+        },
+        "upstream": {
+          "git_blob": "2b84e4f9444c4049cbecdbac993283182b0f0084",
+          "mode": "100644",
+          "sha256": "158330af1659458343692c571597b5e179031105fee2141005ada9e22f0cf232"
+        }
+      },
+      "result": {
+        "sha256": "158330af1659458343692c571597b5e179031105fee2141005ada9e22f0cf232",
+        "git_blob": "2b84e4f9444c4049cbecdbac993283182b0f0084",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/tests/Makefile",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "44624a456e797523a8bd6300bb55a12341c80178",
+          "mode": "100644",
+          "sha256": "89be05e71e9117814d2f6eabbed0b67bda46ea4d5dfe76d2e18e4eafb4297fa5"
+        },
+        "touch": {
+          "git_blob": "1f559b6c7ce1dc29dacfb6437790facea6dba8cc",
+          "mode": "100644",
+          "sha256": "75315f9b3d2e425466883426619198f997c158c1236748f58c3d421e77e0d357"
+        },
+        "upstream": {
+          "git_blob": "5415d33273eaf9a74e21f24431c82eb1403863bd",
+          "mode": "100644",
+          "sha256": "85059a1e03ffce30f4aaba3705360c7a31f55ea1a8baa16c3c5e4da8a6cbe8c8"
+        }
+      },
+      "result": {
+        "sha256": "c4970f30a4cdf8f0901cffde9538269bdd1ffcd9de8bad9abc9ea516e7c3f741",
+        "git_blob": "8e678c2323f943dc6161666796136b525729e7ef",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/tests/t_fpslock.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "74309f6b17267658b7711f5958fef9a781d62b26",
+          "mode": "100644",
+          "sha256": "77e9813accf5040c91e65a363552c1199bef5756c1a01ddd62feaf1b448ae960"
+        },
+        "touch": {
+          "git_blob": "74309f6b17267658b7711f5958fef9a781d62b26",
+          "mode": "100644",
+          "sha256": "77e9813accf5040c91e65a363552c1199bef5756c1a01ddd62feaf1b448ae960"
+        },
+        "upstream": {
+          "git_blob": "85fb4a9e922a1272bd8ef18e9feb161fcea786d6",
+          "mode": "100644",
+          "sha256": "9694751e2f2e6e10f355f178d576edbb31e47982ef572c07ebaded1e5d7b0211"
+        }
+      },
+      "result": {
+        "sha256": "9694751e2f2e6e10f355f178d576edbb31e47982ef572c07ebaded1e5d7b0211",
+        "git_blob": "85fb4a9e922a1272bd8ef18e9feb161fcea786d6",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/tests/t_movie_avc.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "3d7a97dd3da91e5ef2da437aa812133e165c4d40",
+          "mode": "100644",
+          "sha256": "42d68e5a71523d3ebc46799d8b9d02b24bb91059475571453609ef5385f403cb"
+        },
+        "touch": {
+          "git_blob": "3d7a97dd3da91e5ef2da437aa812133e165c4d40",
+          "mode": "100644",
+          "sha256": "42d68e5a71523d3ebc46799d8b9d02b24bb91059475571453609ef5385f403cb"
+        },
+        "upstream": {
+          "git_blob": "7dd909a42173e42da67af2a626ac55d1426663c6",
+          "mode": "100644",
+          "sha256": "85b37febc1a41709dea1681f6560d309b93b617f91d5d97d36e16950ebf219e5"
+        }
+      },
+      "result": {
+        "sha256": "85b37febc1a41709dea1681f6560d309b93b617f91d5d97d36e16950ebf219e5",
+        "git_blob": "7dd909a42173e42da67af2a626ac55d1426663c6",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/host/tests/t_uecvar.c",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "2ccc84a45cf0e0d563adddd3d33f0a12645ba7d9",
+          "mode": "100644",
+          "sha256": "6bc42cd9361dfe87ae64f2b3359300b3356041e66e8a319d7c6cc333009ec365"
+        },
+        "touch": {
+          "git_blob": "2ccc84a45cf0e0d563adddd3d33f0a12645ba7d9",
+          "mode": "100644",
+          "sha256": "6bc42cd9361dfe87ae64f2b3359300b3356041e66e8a319d7c6cc333009ec365"
+        },
+        "upstream": {
+          "git_blob": "81e14bd1538802875e8d9602289bf04d7518dc57",
+          "mode": "100644",
+          "sha256": "0f06109728c9bed938c9aeb4169d73abedeb09a2e2fcd7fad76523b986c5a50d"
+        }
+      },
+      "result": {
+        "sha256": "0f06109728c9bed938c9aeb4169d73abedeb09a2e2fcd7fad76523b986c5a50d",
+        "git_blob": "81e14bd1538802875e8d9602289bf04d7518dc57",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/ios/Sources/front_ios.m",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "4fdb293cfb9361570c71b4b2a0988361fce51ceb",
+          "mode": "100644",
+          "sha256": "83cd39c091219430fe9f7e1c5b43861c5b5d049bacced7209dd64115e3ee1f4f"
+        },
+        "touch": {
+          "git_blob": "bdf6ed259005c5435937688e8613acda17028153",
+          "mode": "100644",
+          "sha256": "8a141a1a15d23f5a3c7a72d785c68aac9234d717270fa168375d390baee7638c"
+        },
+        "upstream": {
+          "git_blob": "7491bb551aba62e456622c1dd9b2c0b17ff71ff9",
+          "mode": "100644",
+          "sha256": "dce5e64673412674c91d0f58a476e8188e46955b3f939f2f3205264ee7eb86d8"
+        }
+      },
+      "result": {
+        "sha256": "da6ce0a7ce4140b13d28ccf572793e5e259b717602ef2ab395c759e07d53fcc1",
+        "git_blob": "0d6fd8ca667ad9f51926f07984d01bd17be3dc39",
+        "mode": "100644"
+      },
+      "resolution": "Show the upstream unsupported-device screen only for a device error; retain touch fork game-data import and launcher flow for missing game files. Device errors prevent import and launch."
+    },
+    {
+      "path": "dm/ios/Sources/main.m",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "ca996cfb9474314ff818bc913a4f09e1ca1e453e",
+          "mode": "100644",
+          "sha256": "f79857035fcf6d639b8505f8cc703f2139da475fe728ad36e1c6eb4f16c96332"
+        },
+        "touch": {
+          "git_blob": "650d43fb191a4c04f4eb64e35399baa59cc29e06",
+          "mode": "100644",
+          "sha256": "ea07b706c42953804fcd95cedfdd633bce255bad341bdf4b6dc27685f4abbc3d"
+        },
+        "upstream": {
+          "git_blob": "0c5e2d871c27f6e087f4a1fe9757895010b3083c",
+          "mode": "100644",
+          "sha256": "03c6415909c55e02d1334f9eccbc761fd1b85f222734bcaa78782fe5631984ff"
+        }
+      },
+      "result": {
+        "sha256": "dcae30149cce351356942af9f3eb4f1a3522c75cf7ffe4145efada2360fa11e8",
+        "git_blob": "7e711385a60435233c5bc24887342164ce14c53b",
+        "mode": "100644"
+      },
+      "resolution": "Retain deferred game-data discovery/import. Run upstream BC texture capability check before preload and reject later prepare requests while a device error is present."
+    },
+    {
+      "path": "dm/sanitizers/coverage.mk",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "030cd94f0136b0f80ef3087c2c1f37b3b6857781",
+          "mode": "100644",
+          "sha256": "61ef467e2506993c5c4cfffa833d169b3c5131fd79915047185ec9c8956c925d"
+        }
+      },
+      "result": {
+        "sha256": "61ef467e2506993c5c4cfffa833d169b3c5131fd79915047185ec9c8956c925d",
+        "git_blob": "030cd94f0136b0f80ef3087c2c1f37b3b6857781",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/coverage_report.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "935ccd616bfc7cc7455a3cbd1d66a1380c3f0ab8",
+          "mode": "100644",
+          "sha256": "9fe0d2e796e65bc7c6d5875ce0a7618343d63778e3f0587e379ae2762eb40b33"
+        }
+      },
+      "result": {
+        "sha256": "9fe0d2e796e65bc7c6d5875ce0a7618343d63778e3f0587e379ae2762eb40b33",
+        "git_blob": "935ccd616bfc7cc7455a3cbd1d66a1380c3f0ab8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/docs_patches.py",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "7721fc4bbcb05a3332c85c58d95d5c630fe0dd8e",
+          "mode": "100644",
+          "sha256": "d60becb8d42b1285e203673460ee61f0bf48853d50601e5e97d5c9e1904f7ece"
+        },
+        "touch": {
+          "git_blob": "28e121d76973c6f273942c48435793024cc8b32e",
+          "mode": "100644",
+          "sha256": "1387ee2380a58ff829d2578bb486ade6cac92ae9a060a04f90e437b2c37b7565"
+        },
+        "upstream": {
+          "git_blob": "787bf620a22bc3337a5878f016b9016b8f8b7655",
+          "mode": "100644",
+          "sha256": "874427216ff42078878e4f03edd6940687058ddfbab1ef7350c60651cd3db6e0"
+        }
+      },
+      "result": {
+        "sha256": "9f04ea03dea13905025ef32fbbb278188dae150a92275ea4aebe9046ff841ebc",
+        "git_blob": "ee450e5a67cd1dde0305b55279a0ab9b8620b4e8",
+        "mode": "100644"
+      },
+      "resolution": "Retain BOTW touch-address classification and remove the obsolete fixed-address Unreal frame-variable classification eliminated upstream."
+    },
+    {
+      "path": "dm/tools/lint_c.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "4d0f07e2b2821eac061c18c620f95a9d7777d8cb",
+          "mode": "100644",
+          "sha256": "8dbb57da833676646e9f487039843ae68d3a33305e1fb4a6ee22f89d9c88b9dd"
+        }
+      },
+      "result": {
+        "sha256": "8dbb57da833676646e9f487039843ae68d3a33305e1fb4a6ee22f89d9c88b9dd",
+        "git_blob": "4d0f07e2b2821eac061c18c620f95a9d7777d8cb",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/lint_c_baseline.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "555e12bc16d75c77d8e2c7107a41e6de5e9d951f",
+          "mode": "100644",
+          "sha256": "1cfb9579d1ad6f5eb34a95ebbf30df43c0fd3fe6af39a60ad27f770a79d5131f"
+        }
+      },
+      "result": {
+        "sha256": "1cfb9579d1ad6f5eb34a95ebbf30df43c0fd3fe6af39a60ad27f770a79d5131f",
+        "git_blob": "555e12bc16d75c77d8e2c7107a41e6de5e9d951f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/patch_nso.py",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "e518f9a424ca9f29c761b6ebe3d1ffc62b4c2fe9",
+          "mode": "100644",
+          "sha256": "bf157ead8721deb0fa0578bb83a00b9b1d0132ed9a1b85f3cedd69f775ba60d2"
+        },
+        "touch": {
+          "git_blob": "d5b9ad1b0d403b068e31082b8413787eb5701cc2",
+          "mode": "100644",
+          "sha256": "f5c3837009183ae75315cbfda1d853973a4689a098cbeb0f27d0ecf4c2e0daeb"
+        },
+        "upstream": {
+          "git_blob": "e9db0d1cce17090f97b73684c86a5a7539e29782",
+          "mode": "100644",
+          "sha256": "d3bd10ad91bd15100d093f326b884d96fe9e7bc9c67d2ceceadb2cc411d67202"
+        }
+      },
+      "result": {
+        "sha256": "573f40a35fcf0999dca375a92359fdc54e804e3de7a88a8a6c74d59c234104c2",
+        "git_blob": "2fed77567be90bf20bac7acb295c697b72154072",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_acquire_lock.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "f7426b0894bbaea82810c32b3678976d9aa65132",
+          "mode": "100644",
+          "sha256": "88800e44b04895cc6c42ba86b897d8c752b23d4906698fbf1569ebd49b22f029"
+        }
+      },
+      "result": {
+        "sha256": "88800e44b04895cc6c42ba86b897d8c752b23d4906698fbf1569ebd49b22f029",
+        "git_blob": "f7426b0894bbaea82810c32b3678976d9aa65132",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_ci_toolchain.py",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "fa8b331ec0e1a3afe238adcfd91a4b654befb136",
+          "mode": "100644",
+          "sha256": "5a33b4cc92ec9d771b22b9c2585d36fe34645c3010fd50bae6c445db3557796c"
+        },
+        "touch": {
+          "git_blob": "8621c9a8cecf498314e7e0fb30da54cf16412d4a",
+          "mode": "100644",
+          "sha256": "eeecb529309ec76612253113d17712b30529b54025e495d0250c98eaa34c90d7"
+        },
+        "upstream": {
+          "git_blob": "a2479ef2a36ce7268ebb90cf733dd36d72831f7e",
+          "mode": "100644",
+          "sha256": "a76c35efe9d4e68044a2398b75cd348bc0666200a3359821bc4e40871bd7c160"
+        }
+      },
+      "result": {
+        "sha256": "86063f7f841cbdf7ac0bc92963706ecb365b3751e66765f57823ab2237a79351",
+        "git_blob": "3b217d06acc890a6d45495421b2420d26eee2d2c",
+        "mode": "100644"
+      },
+      "resolution": "Retain touch fork build-guide version checks; also retain upstream README side-by-side Xcode and Metal-stop-message checks."
+    },
+    {
+      "path": "dm/tools/tests/test_coverage_report.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "bff01a01f6832f547e800cadef8c74247c567b67",
+          "mode": "100644",
+          "sha256": "d45cff9549ea6f1e493241d14da44d46ace2971b6bc83107ade5dace1c7c9be2"
+        }
+      },
+      "result": {
+        "sha256": "d45cff9549ea6f1e493241d14da44d46ace2971b6bc83107ade5dace1c7c9be2",
+        "git_blob": "bff01a01f6832f547e800cadef8c74247c567b67",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_lint_c.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "ee4f5aeae4bc5c4dc1bdf05696606a16b2cbaea9",
+          "mode": "100644",
+          "sha256": "01bccb90434eb06a793d9cfcd1abe97d09d3f286c7fd13b7c584b1e778a50220"
+        }
+      },
+      "result": {
+        "sha256": "01bccb90434eb06a793d9cfcd1abe97d09d3f286c7fd13b7c584b1e778a50220",
+        "git_blob": "ee4f5aeae4bc5c4dc1bdf05696606a16b2cbaea9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_own_compilers.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "cdf1a879ea1cabed8262ee4a5b500ad71b625ee0",
+          "mode": "100644",
+          "sha256": "5fb12234860569359efbf79b0e1804a221b85e92e345d3636b04bc9d0ddbaeb9"
+        },
+        "touch": {
+          "git_blob": "cdf1a879ea1cabed8262ee4a5b500ad71b625ee0",
+          "mode": "100644",
+          "sha256": "5fb12234860569359efbf79b0e1804a221b85e92e345d3636b04bc9d0ddbaeb9"
+        },
+        "upstream": {
+          "git_blob": "4d4f6d342f1ed55ec3a02e14575333be9655fec9",
+          "mode": "100644",
+          "sha256": "5e3172a7447cf73f8e07eb6dfc243db87efa716c2ecc22d1029a325272c32f6e"
+        }
+      },
+      "result": {
+        "sha256": "5e3172a7447cf73f8e07eb6dfc243db87efa716c2ecc22d1029a325272c32f6e",
+        "git_blob": "4d4f6d342f1ed55ec3a02e14575333be9655fec9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_regress.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "cc6b8b40c60aeb33799773ba4e6c14cc80de8450",
+          "mode": "100644",
+          "sha256": "43390803c00be3ac7b911ab99a3702cd5299d21732eb544d5bd4a6ba2f415813"
+        },
+        "touch": {
+          "git_blob": "cc6b8b40c60aeb33799773ba4e6c14cc80de8450",
+          "mode": "100644",
+          "sha256": "43390803c00be3ac7b911ab99a3702cd5299d21732eb544d5bd4a6ba2f415813"
+        },
+        "upstream": {
+          "git_blob": "ec8bd6097fcedfd7338c41b3d28bfd5e7eb7ab9d",
+          "mode": "100644",
+          "sha256": "3331e1346481be00259b12a5025e826c76d97a443b086fd2fb6a9065bbfb43e8"
+        }
+      },
+      "result": {
+        "sha256": "3331e1346481be00259b12a5025e826c76d97a443b086fd2fb6a9065bbfb43e8",
+        "git_blob": "ec8bd6097fcedfd7338c41b3d28bfd5e7eb7ab9d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_ue_cvar.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "5eca800b8bf445fadb5c13c8f7d156385d0b1da4",
+          "mode": "100644",
+          "sha256": "663bd69aad9d2b6bf04f0e862b879979c41f49f1ad75ec524a211e0ba9299bb0"
+        }
+      },
+      "result": {
+        "sha256": "663bd69aad9d2b6bf04f0e862b879979c41f49f1ad75ec524a211e0ba9299bb0",
+        "git_blob": "5eca800b8bf445fadb5c13c8f7d156385d0b1da4",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/tests/test_ue_malloc.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "0bc3d8d41a6f5ea53832e5ca9e9dbf8edf7bbea2",
+          "mode": "100644",
+          "sha256": "3e9ff5923ed96674d3c01e79a4bff180994eb7a1a0d19b225ed1ec95402130d9"
+        }
+      },
+      "result": {
+        "sha256": "3e9ff5923ed96674d3c01e79a4bff180994eb7a1a0d19b225ed1ec95402130d9",
+        "git_blob": "0bc3d8d41a6f5ea53832e5ca9e9dbf8edf7bbea2",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/ue_cvar.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "b3eadc1ba7a26297b4290b7c4d92ee3033f49229",
+          "mode": "100644",
+          "sha256": "8f6c2129316be791376a84a57595d870cdcf23950213a772a6233c28f57e4220"
+        }
+      },
+      "result": {
+        "sha256": "8f6c2129316be791376a84a57595d870cdcf23950213a772a6233c28f57e4220",
+        "git_blob": "b3eadc1ba7a26297b4290b7c4d92ee3033f49229",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "dm/tools/ue_malloc.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "a4fe11f4b67bc57c3da4d60959373e44beec96e9",
+          "mode": "100644",
+          "sha256": "9c2d28076b79cff87c0f30295e4e9a8c32ba2194c0c2620522eb4cd60ee66c3c"
+        }
+      },
+      "result": {
+        "sha256": "9c2d28076b79cff87c0f30295e4e9a8c32ba2194c0c2620522eb4cd60ee66c3c",
+        "git_blob": "a4fe11f4b67bc57c3da4d60959373e44beec96e9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/agents/06-dev-loop.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "6bffe31b74cc6a6f6f5f6a50030081e276bf7b78",
+          "mode": "100644",
+          "sha256": "463fe3b4419fbbdf3da81d79f7ea4d182d2b875711f0d166dd7011f6052b6728"
+        },
+        "touch": {
+          "git_blob": "6bffe31b74cc6a6f6f5f6a50030081e276bf7b78",
+          "mode": "100644",
+          "sha256": "463fe3b4419fbbdf3da81d79f7ea4d182d2b875711f0d166dd7011f6052b6728"
+        },
+        "upstream": {
+          "git_blob": "a48899bf17cbbf0fb07b44671eda6a4a0ffef0db",
+          "mode": "100644",
+          "sha256": "9277ab8169ff04b7b9b627c9efd9449a6aa2e906c9a4a8117881ec03c71cd5ac"
+        }
+      },
+      "result": {
+        "sha256": "9277ab8169ff04b7b9b627c9efd9449a6aa2e906c9a4a8117881ec03c71cd5ac",
+        "git_blob": "a48899bf17cbbf0fb07b44671eda6a4a0ffef0db",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/agents/game-patches.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "397a8412e599f66f3d4649898da8e710f504f773",
+          "mode": "100644",
+          "sha256": "f16f0f20acec7f17f249f63345ae146effb247e655ae6a1805ea4d87ab3c104d"
+        },
+        "touch": {
+          "git_blob": "314a913788f65d1bb53ddfe5946892106cb29a72",
+          "mode": "100644",
+          "sha256": "5b3537cb79897d268f4522533ac4d6dfa4526ae43a395b62907263905a4ca21d"
+        },
+        "upstream": {
+          "git_blob": "45c282c7036b41d6edb42c4b0cc377d8c8cb5474",
+          "mode": "100644",
+          "sha256": "c1cad9908c438ce46231ddc386947f41f8fa8885c1038f50f1f757934f6ca6b2"
+        }
+      },
+      "result": {
+        "sha256": "b42104692beba784a39cf88e4b960264ca8fa76d437b6e85a88169d054cab603",
+        "git_blob": "34141154da3554e5fa122f5c25938dc3811f0cbc",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/agents/symptoms.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "516b30c0365563ece2799f6b854b18bd8506717d",
+          "mode": "100644",
+          "sha256": "7748b6e2b77c9122a8ea3d6c2f325f8cf254898ba51b48828e667eb4a62bce74"
+        },
+        "touch": {
+          "git_blob": "4e75099d1dabfce8426cfb2757d9052af230d1b5",
+          "mode": "100644",
+          "sha256": "d256b7cbb0f8ad30a76f274ed382ee1dc6ffaffea443601a98a7a483ee467524"
+        },
+        "upstream": {
+          "git_blob": "760b6a01728a9b86b8503a01217f3917364c48f6",
+          "mode": "100644",
+          "sha256": "e6c4ebfc994e10a80c7f7773383033cd2f6d1ae7db651a4d42ad016e6443dd27"
+        }
+      },
+      "result": {
+        "sha256": "9703ac95ee7c17f70b77bd52e426994938b56a363f1624969eaa1cdac4e31391",
+        "git_blob": "032a6a787e820289bb9474f83c9bf28b978fe893",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/development.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "f5ea1025b64985f76cae06cb3f055a8e748015c9",
+          "mode": "100644",
+          "sha256": "e0a30f2ad98ce64b5e780ff251f0617dbe1fa68bdfd3080799fa103fb0458688"
+        },
+        "touch": {
+          "git_blob": "8265dd494df0810e019c106ca225b545fdbad6de",
+          "mode": "100644",
+          "sha256": "dd61be17b649f93b38e999e09a59ea4afdcff0060a08bb24c84a6c0e5652fd29"
+        },
+        "upstream": {
+          "git_blob": "36abfc717398c95c92044eebed29232870797af6",
+          "mode": "100644",
+          "sha256": "ee4721937612a6cc336b98fdc551c02fe969591c2da500b20a29c7b6e3c15060"
+        }
+      },
+      "result": {
+        "sha256": "7d8f6981e56780b1427f73377257ded7adb1c1da77f8205c9561689df206c8b7",
+        "git_blob": "62e4f16d1c4d2808f14f47c8c29cb4ef95fd5a50",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/images/gallery.tsv",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "5ed0ad71f2f9ab841ad28371b8408598bae3a1d6",
+          "mode": "100644",
+          "sha256": "1be1bef66cf1787dfcc941e357a6eff66f9c1feff080471e7b61a46a504dd29d"
+        },
+        "touch": {
+          "git_blob": "5ed0ad71f2f9ab841ad28371b8408598bae3a1d6",
+          "mode": "100644",
+          "sha256": "1be1bef66cf1787dfcc941e357a6eff66f9c1feff080471e7b61a46a504dd29d"
+        },
+        "upstream": {
+          "git_blob": "81961728546c5f4c5cc69ce5777bab4e10200741",
+          "mode": "100644",
+          "sha256": "ef714b8545c9207bbd62aa8a5d0f661ff0d109809cf92b2f5242b4b59f44f85a"
+        }
+      },
+      "result": {
+        "sha256": "ef714b8545c9207bbd62aa8a5d0f661ff0d109809cf92b2f5242b4b59f44f85a",
+        "git_blob": "81961728546c5f4c5cc69ce5777bab4e10200741",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/frame-rate.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "01e3d2f1a51a8eca55e8132111e8219076acdc46",
+          "mode": "100644",
+          "sha256": "7391a853375b6bab30c293de52fd812f346a20c8ab05a857ed5794b0277412d2"
+        },
+        "touch": {
+          "git_blob": "01e3d2f1a51a8eca55e8132111e8219076acdc46",
+          "mode": "100644",
+          "sha256": "7391a853375b6bab30c293de52fd812f346a20c8ab05a857ed5794b0277412d2"
+        },
+        "upstream": {
+          "git_blob": "e823953af990db44d43c5a5aa45f44d5fba98575",
+          "mode": "100644",
+          "sha256": "f27bce7b18f34d6f312484f3af3a53e6097ed831552876666da5ca71b81cca54"
+        }
+      },
+      "result": {
+        "sha256": "f27bce7b18f34d6f312484f3af3a53e6097ed831552876666da5ca71b81cca54",
+        "git_blob": "e823953af990db44d43c5a5aa45f44d5fba98575",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/memory.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "f0d96cee16db5b43876f6bf6b8139801f34fcdce",
+          "mode": "100644",
+          "sha256": "04b05de8b316ef0abaf51f4668697e39269a584c365c3319b96d65aa025df796"
+        },
+        "touch": {
+          "git_blob": "f0d96cee16db5b43876f6bf6b8139801f34fcdce",
+          "mode": "100644",
+          "sha256": "04b05de8b316ef0abaf51f4668697e39269a584c365c3319b96d65aa025df796"
+        },
+        "upstream": {
+          "git_blob": "f61a4d1cff6b3cff5521a507bf44bf4cb3284b76",
+          "mode": "100644",
+          "sha256": "0426301f1389960060fdbe765470ca24d1e6972a4d972bb05e97caad2450fd39"
+        }
+      },
+      "result": {
+        "sha256": "0426301f1389960060fdbe765470ca24d1e6972a4d972bb05e97caad2450fd39",
+        "git_blob": "f61a4d1cff6b3cff5521a507bf44bf4cb3284b76",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/movies.md",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "d97aa2caf21144087c59aba34b720519f3e2c064",
+          "mode": "100644",
+          "sha256": "e61d3e0f123bc3adb7548b5520154c65a77cdac534a20999fbbd65856d6d73cb"
+        },
+        "touch": {
+          "git_blob": "d97aa2caf21144087c59aba34b720519f3e2c064",
+          "mode": "100644",
+          "sha256": "e61d3e0f123bc3adb7548b5520154c65a77cdac534a20999fbbd65856d6d73cb"
+        },
+        "upstream": {
+          "git_blob": "a62cf7e9b280131bcd905f2ff2484bba32845db9",
+          "mode": "100644",
+          "sha256": "7352d63a791c673ad6d9a4a91cdcfdf2fecf264ee29e4654ba45ea6a10977673"
+        }
+      },
+      "result": {
+        "sha256": "7352d63a791c673ad6d9a4a91cdcfdf2fecf264ee29e4654ba45ea6a10977673",
+        "git_blob": "a62cf7e9b280131bcd905f2ff2484bba32845db9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/rendering.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "407b4655beecace40a4f2781bc0180d525552ab9",
+          "mode": "100644",
+          "sha256": "0da23d61a14bab1a79125ac90a2ca5e83c9b42acf5bc1953620a0d50c9dbdb8a"
+        },
+        "touch": {
+          "git_blob": "170d5b047579b09d8ca73637c7e0a4e10939a308",
+          "mode": "100644",
+          "sha256": "57a061d39eafc42f85826781960c145215367a5b4d86851fd9d4d26e241f1203"
+        },
+        "upstream": {
+          "git_blob": "6d557870ba858676f72acbcc267e7c31fb897958",
+          "mode": "100644",
+          "sha256": "36235ab74bfd8bb9d8e8476645b710558b2f82c48ec423bf5399bedfff92487d"
+        }
+      },
+      "result": {
+        "sha256": "833ddcc469b3d0814e4a88e292c3ac891b57b46973dfde1a9471ffd21295d090",
+        "git_blob": "3346a94b1b64859a0ab598061cffc3bcbfe58b21",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/rewriter.md",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "c319197ce13080ae7e94728a440582178852dbf3",
+          "mode": "100644",
+          "sha256": "19ff1683c6a0c70c1e1a18e8c8f596232ece64f1a54fde9f6fca11fe9c08bfbc"
+        },
+        "touch": {
+          "git_blob": "53ad1ada8574f64e0e666e7c9a9d99b9d9107bbf",
+          "mode": "100644",
+          "sha256": "b7877be41754b12aa816bb3e4290c80c3d1fbba271cdcbf3887f5007a70fd5dc"
+        },
+        "upstream": {
+          "git_blob": "94182c56fa52430a9c5dac7d154e8d6b029e40d8",
+          "mode": "100644",
+          "sha256": "0da4f7a2e28a14be90636febec0d393da8b31b0c2c7c741de70e10f0905cd42c"
+        }
+      },
+      "result": {
+        "sha256": "fb60576b2b17152c2f55a686ec8809d0eddb07d25d9a2e2eeceb610ae7f2b18e",
+        "git_blob": "0eca64ab77bf8fd376c484010be5a73ce2997782",
+        "mode": "100644"
+      },
+      "resolution": "Retain BOTW post-BLR observation safety documentation and add upstream allocator-gate retirement history."
+    },
+    {
+      "path": "docs/reference/shaders.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "93455be80ff403cffea763b4885706703adc53f4",
+          "mode": "100644",
+          "sha256": "e044052334c633ebf9f03b2bfde7db96bc9426192827bbe4c36e1944a8e8511a"
+        },
+        "touch": {
+          "git_blob": "5b58634ebbff89923a0ba3ed70e72da193682000",
+          "mode": "100644",
+          "sha256": "ce92de5c2d76ff8ce02e81d8a87f33017d3bbfd9e0a937de73a77832afd13082"
+        },
+        "upstream": {
+          "git_blob": "4139a45cc4c6abdfbc9b8e1382c6c5c4548f24e4",
+          "mode": "100644",
+          "sha256": "84f8b17f0d37b1d4cf18f990e4e1b1f57b4d9049d68901d65f1922378ad13059"
+        }
+      },
+      "result": {
+        "sha256": "3fc00d3b42a35a0ce4afde095758a615299a28cd0eebde26e1c6864762f27e08",
+        "git_blob": "27ba972f26dfe3a3420f7498044755d444313332",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/reference/threads.md",
+      "strategy": "three-way-clean",
+      "sources": {
+        "base": {
+          "git_blob": "ec71da4d83d064ac574e698d424ee9f51f33d52e",
+          "mode": "100644",
+          "sha256": "f48ab64dd62f655c83a5714d7de47ddd9171b41945ed598db9c375ea4edd50a4"
+        },
+        "touch": {
+          "git_blob": "c13afd7b8adae703a3251858bcf684b5cde2eb77",
+          "mode": "100644",
+          "sha256": "95dbe94b62abf0ea8ab77d94417845ad1ed0729eea1b8c32463e55371a83e9b1"
+        },
+        "upstream": {
+          "git_blob": "becf62c0faa25f45fa7897ca60d94b73e2d2f66c",
+          "mode": "100644",
+          "sha256": "49b7e388f1c18b4ea98dd9df07c809cd05a0764df4a40b4ef6c89e7d83c54e49"
+        }
+      },
+      "result": {
+        "sha256": "2da4c90b6a53e00ba820e7dbd77cb5509875b7e106aa39c1159ed79d496b0d61",
+        "git_blob": "3ac3ec130126176d4bfc5f45894070cfc9e431fe",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "pyproject.toml",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "487edfbb8395679e2debd173c4665d8653a9468c",
+          "mode": "100644",
+          "sha256": "1471cacc1f4f953e5d96a529d51f57fe5632acc1e9c03c046a037ea1cd78ca0f"
+        },
+        "touch": {
+          "git_blob": "487edfbb8395679e2debd173c4665d8653a9468c",
+          "mode": "100644",
+          "sha256": "1471cacc1f4f953e5d96a529d51f57fe5632acc1e9c03c046a037ea1cd78ca0f"
+        },
+        "upstream": {
+          "git_blob": "a50f9ff1dffa3f09cca2d75fbfef87cbfc6f71b8",
+          "mode": "100644",
+          "sha256": "fb71855b17b1d1ad15b160a94afaa76fa885cedf5f68ba03bafd3e3546caf085"
+        }
+      },
+      "result": {
+        "sha256": "fb71855b17b1d1ad15b160a94afaa76fa885cedf5f68ba03bafd3e3546caf085",
+        "git_blob": "a50f9ff1dffa3f09cca2d75fbfef87cbfc6f71b8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "scripts/build_ipa_from_nsp.py",
+      "strategy": "reviewed-three-way-resolution",
+      "sources": {
+        "base": {
+          "git_blob": "d6afe9d72d87f46fa389826c08cd8eb07058f610",
+          "mode": "100755",
+          "sha256": "43e5820949e89ed30fedaac97164a865661d0484898deb76625b358087e125e7"
+        },
+        "touch": {
+          "git_blob": "7719caf09977d57747ef58e353cdf34f27d6a75f",
+          "mode": "100755",
+          "sha256": "9cddc5f184d2a533a27af4564e8acf6f011b6cdcfb541c3e594d20d8d2c5c71f"
+        },
+        "upstream": {
+          "git_blob": "e0f6043832d5294bc0ab7faa82290cb1cf525d3b",
+          "mode": "100755",
+          "sha256": "ffcb16a9da2e309db5e839dcc2c042d6243011ab2047caeb29e2e3ca6bab50d9"
+        }
+      },
+      "result": {
+        "sha256": "136f28ccd69aa643139778080166ab34f3c82ba38c01ee6aa506783d89d96f8c",
+        "git_blob": "7b4f7afbb42c676cfbb2ec84ea5c529b20ce58d7",
+        "mode": "100755"
+      },
+      "resolution": "Retain touch fork operation-specific rewrite_state cache validation and add the three upstream rewriter dependencies to that shared fingerprint."
+    },
+    {
+      "path": "scripts/regress.py",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": {
+          "git_blob": "4866a0956f38a55f2d82c58f1dd2cbbe451ba5c9",
+          "mode": "100644",
+          "sha256": "a00f76a9fce8d0d8cb0ccf1b3c00720835e485abd672f79ae73d5c62beda0d5f"
+        },
+        "touch": {
+          "git_blob": "4866a0956f38a55f2d82c58f1dd2cbbe451ba5c9",
+          "mode": "100644",
+          "sha256": "a00f76a9fce8d0d8cb0ccf1b3c00720835e485abd672f79ae73d5c62beda0d5f"
+        },
+        "upstream": {
+          "git_blob": "6e0f2a3b11c7184e182a9b309640758287ceeab2",
+          "mode": "100644",
+          "sha256": "0f283bd268e9f36bc3d23b65a6b5681d2924087e02c922482bcc2543d5d824c3"
+        }
+      },
+      "result": {
+        "sha256": "0f283bd268e9f36bc3d23b65a6b5681d2924087e02c922482bcc2543d5d824c3",
+        "git_blob": "6e0f2a3b11c7184e182a9b309640758287ceeab2",
+        "mode": "100644"
+      }
+    }
+  ],
+  "unresolved_conflicts": [],
+  "reviewed_conflicts": [
+    "README.md",
+    "dm/host/dm.h",
+    "dm/ios/Sources/front_ios.m",
+    "dm/ios/Sources/main.m",
+    "dm/tools/docs_patches.py",
+    "dm/tools/tests/test_ci_toolchain.py",
+    "docs/reference/rewriter.md",
+    "scripts/build_ipa_from_nsp.py"
+  ],
+  "shader_chain": {
+    "version": "715bb867230c",
+    "declared_header": "715bb867230c",
+    "options": "debug=True reduced=True",
+    "upstream_declared_header": "b3ca4b7c621f",
+    "delta_changes_chain_inputs": false,
+    "inputs": [
+      {
+        "path": "dm/gfx/tools/dmsh_chain.py",
+        "chain_name": "tools/dmsh_chain.py",
+        "sha256": "430b7dabc9ef0e924256ed24d06fdb89341769330743a60d144c5eb27649cc5b",
+        "bytes": 9129
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_build.py",
+        "chain_name": "tools/dmsh_build.py",
+        "sha256": "c35dab3c0a63f4fd5d0cbcfafedb6530ff2ddf4369f7f59a2cf50c8821275ee9",
+        "bytes": 104784
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_shader_pipeline.py",
+        "chain_name": "tools/dmsh_shader_pipeline.py",
+        "sha256": "85359425292af2f9c78d0163b6f1b92c782dfc93d00cef86ed9c3c997de74384",
+        "bytes": 6471
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_codegen_cache.py",
+        "chain_name": "tools/dmsh_codegen_cache.py",
+        "sha256": "4ca150cfe07fd834a1abe3ad76d419bf61ae8ac22157f8d7c96f1ce681dbdd08",
+        "bytes": 14546
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_xlatecache.py",
+        "chain_name": "tools/dmsh_xlatecache.py",
+        "sha256": "9105be6881c7dab53be550ed7bbb6f8ba852e533e78d766559c3b92ddb03f8b8",
+        "bytes": 13367
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_mtlcache.py",
+        "chain_name": "tools/dmsh_mtlcache.py",
+        "sha256": "4fc4dd2d5ffb3c70ced1b69fb5e24044d7b7db90b40160816502334888fc05b7",
+        "bytes": 12432
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_atomic.py",
+        "chain_name": "tools/dmsh_atomic.py",
+        "sha256": "e889cf1c5e48df976008181f6f85b8d9ba987d170fe165d4d9d0a5798511dcef",
+        "bytes": 2411
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_fetch.py",
+        "chain_name": "tools/dmsh_fetch.py",
+        "sha256": "c76494bd4e894e2e4e2bdd8e6871e58b83cd6c6b83551e76bf9f70d603994245",
+        "bytes": 6460
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_vin.py",
+        "chain_name": "tools/dmsh_vin.py",
+        "sha256": "5076c6bc3f587435f3d60723d11ef92ac105730c7214fee1135e21a4d0d63f14",
+        "bytes": 3927
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_pull.py",
+        "chain_name": "tools/dmsh_pull.py",
+        "sha256": "5adde7bbcd4becd49b40d3747761b483ec36231c0fd5a7dbd4d54307cad4043c",
+        "bytes": 4517
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_pull.metal",
+        "chain_name": "tools/dmsh_pull.metal",
+        "sha256": "898853af97a228e32cfe624e900222fdd36d372a83bc2d3dc573657225a269de",
+        "bytes": 7065
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_alpha.py",
+        "chain_name": "tools/dmsh_alpha.py",
+        "sha256": "943841c5e3f230958ac39038cfa4c7f5a7d6aee67f20e53f0d6a4e75b15e2478",
+        "bytes": 4209
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_logic.py",
+        "chain_name": "tools/dmsh_logic.py",
+        "sha256": "43179bdeae6f6aa1a9c13a6603e2f4fcf3b40fb3c21afedb6248a266aea9bf89",
+        "bytes": 6251
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_geometry.py",
+        "chain_name": "tools/dmsh_geometry.py",
+        "sha256": "7d087606a8c2d81064e7cc8327bc7dc5f1eb77fbc99d26cb1146ce4b2f742e50",
+        "bytes": 16335
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_mesh.py",
+        "chain_name": "tools/dmsh_mesh.py",
+        "sha256": "21c8e66ba6f39031b9aa5557b95a6a994c71251605ee9645c792a51c9dd70609",
+        "bytes": 8452
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_facts.py",
+        "chain_name": "tools/dmsh_facts.py",
+        "sha256": "43fb6fc8c654e0f4ce0c989cdbb771cd24fae700c96e461f81f7b5b009a1cae2",
+        "bytes": 1824
+      },
+      {
+        "path": "dm/gfx/nvn/dmsh_abi.h",
+        "chain_name": "nvn/dmsh_abi.h",
+        "sha256": "8f2156ea9dd121c9766369067a74df9a9cea78407289b1adee2c4043257002d6",
+        "bytes": 8568
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_abi.py",
+        "chain_name": "tools/dmsh_abi.py",
+        "sha256": "7fef7aa1ea3a2295abb3cb35ebcaa70ea72bdd7c254c2d393d95626b50b352aa",
+        "bytes": 2127
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_xlate/Program.cs",
+        "chain_name": "tools/dmsh_xlate/Program.cs",
+        "sha256": "de6b7684afa0aee9f97f8bfb18e0cd9d0aa6237a0453e77892daecc860eb4102",
+        "bytes": 23399
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_xlate/dmsh_xlate.csproj",
+        "chain_name": "tools/dmsh_xlate/dmsh_xlate.csproj",
+        "sha256": "5374a7e2d3f637cedcbf01081a0e64dbd0fd969857adf2dc3a2be9d185e8712d",
+        "bytes": 1089
+      },
+      {
+        "path": "dm/ios/tools/ios_metal.py",
+        "chain_name": "../ios/tools/ios_metal.py",
+        "sha256": "2d910564ee4c7a3a6e19696a82d9e0b4444c3cc3abd5332fd8fa4f731e34fa2f",
+        "bytes": 1642
+      },
+      {
+        "path": "dm/gfx/tools/dmsh_chain.lock",
+        "chain_name": "tools/dmsh_chain.lock",
+        "sha256": "ae03a7af4a09c2a7402dfb659001917155393bde7e6f0b37441f6086a3fad19c",
+        "bytes": 429
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Instructions/InstEmitSurface.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Instructions/InstEmitSurface.cs",
+        "sha256": "36a2807bfdda5fe32f358f4fde8cc543398dddf81e6f28b21fe8c9827c04bc6e",
+        "bytes": 26950
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/TextureFlags.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/TextureFlags.cs",
+        "sha256": "c08307ccef127eb5e136fb71f08446fed181a25bceae9d51113a8377d5608a9c",
+        "bytes": 994
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/TranslationFlags.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/TranslationFlags.cs",
+        "sha256": "d2b1bd6b49fc6f4ab03628d3bfe76f7f758fbecaea3f378a565a77c133d41cae",
+        "bytes": 360
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/HostCapabilities.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/HostCapabilities.cs",
+        "sha256": "66d80f6f521869725eabefbecf7314ceb875cfc591c748ba03a6408925c2a153",
+        "bytes": 2000
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Transforms/GeometryToCompute.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Transforms/GeometryToCompute.cs",
+        "sha256": "8dcf02acfec6bddf11eb3046b53e83a132a49e0453ece512c2f1222b5fca4a82",
+        "bytes": 18290
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs",
+        "sha256": "90e2f6b9a67f4801ae41619b3a51bced84d457bda7fb626b01acf33fdd494909",
+        "bytes": 28459
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Translator.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Translator.cs",
+        "sha256": "79e43f0461fee587bc2a445d6a971e5e3654147142293e0d1e59cc1be3a8f803",
+        "bytes": 15639
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs",
+        "sha256": "7504012b70636916ecc96fc62a504edb77bc9c3ae56dff110e6f9ac2c435be5f",
+        "bytes": 31501
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/ShaderDefinitions.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/ShaderDefinitions.cs",
+        "sha256": "6728dd91bcadccfc80e02850bb59f7d34981a5368446fdb5e20fd5f06029ffb5",
+        "bytes": 13933
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+        "sha256": "843bd950ed98d23099e9c99a405c35cae95aa6a80fc23199c5d751c3cd92c8ea",
+        "bytes": 102288
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/StructuredIr/ShaderProperties.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/StructuredIr/ShaderProperties.cs",
+        "sha256": "ff73490622419399927a7a91ccba6b87fcf972c612e5915a25e7b67c0e6b5cf1",
+        "bytes": 4500
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/BindlessElimination.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/BindlessElimination.cs",
+        "sha256": "36664792ecc26b5c5538c4fd6796226a1b13d40333499943d3c31a597e236e37",
+        "bytes": 33537
+      },
+      {
+        "path": "dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Optimizer.cs",
+        "chain_name": "../third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Optimizer.cs",
+        "sha256": "c08792ef143bd1e4fb295367497b386d33a71a2197987f0d67c16e24fb702780",
+        "bytes": 16457
+      }
+    ],
+    "library_validation": "No shader libraries were generated or validated by this source merge."
+  },
+  "patch_sha256": "9d35f0d83796269cdc305d9b254ff4c8b3b547131b1f274da9a019bd316ee459",
+  "patch_bytes": 14587247,
+  "format_version": 1,
+  "source_only": true,
+  "verification": {
+    "git_blob_hashes": "All downloaded files matched their pinned tree Git blob SHA-1.",
+    "patch_replay": "Final patch passed git apply --check, reverse replay, forward replay, SHA-256 and tracked executable-mode checks for every affected path.",
+    "device_validation": "Not performed.",
+    "python_syntax": "All 20 affected Python source files parsed successfully."
+  },
+  "upstream_commits": [
+    {
+      "sha": "1c3bbbcd6d2d358eebf5086f27a746e48171d230",
+      "subject": "Port Super Monkey Ball Banana Rumble 2.20; a stack region sized for its threads; multisample texture slots read as their own type"
+    },
+    {
+      "sha": "51904e70acb0e183d2dfab9e81400ea27cc17ab8",
+      "subject": "Unreal's FMallocBinned3 found engine-wide by the rewriter (ue_malloc.py); per-build cuts removed (issue #635)"
+    },
+    {
+      "sha": "6d880d237a7684365ca88236e5a5ff34921adf7d",
+      "subject": "GPUs without BC textures refused at start (GitHub issue #704)"
+    },
+    {
+      "sha": "602ed1157516900b79bde7de2ba4a00c194239f0",
+      "subject": "Unreal console variables found by name by the rewriter (ue_cvar.py); the 13 fixed frame-limit rows removed (issue #635)"
+    },
+    {
+      "sha": "e513bfeb240ea81ffd3d34d2cba6a9b1d4c3af3a",
+      "subject": "regress.py runs the repository's profile, not a provisional one left in the build folder"
+    },
+    {
+      "sha": "195986fa999ebbe6efa1dfb99d4a58852676a524",
+      "subject": "Metal stop message says to select the tested Xcode before downloading its toolchain (GitHub issue #717)"
+    },
+    {
+      "sha": "a345f5b01fe73df86f2dd23c4f36ace96feb1a1c",
+      "subject": "C and Objective-C lint in CI: a clang-tidy ratchet that only shrinks (PR #425)"
+    },
+    {
+      "sha": "68db795672e2bd87a6a1c04c120213c41a41203f",
+      "subject": "CI coverage of the host, CPU texture and tool tests, with diff coverage per PR (PR #439)"
+    },
+    {
+      "sha": "b17bd8a8b7db06812ca99b3899d197be4f4bc3d6",
+      "subject": "Python lint ratchet green again: ue_cvar reads the name's add once, the test binds its loop variable"
+    },
+    {
+      "sha": "8bfc3a60c1d4fa2dcf644198e941aa840d3aa37a",
+      "subject": "Native-texture movie slots kept until the client's release (GitHub issue #700)"
+    },
+    {
+      "sha": "fe6d3dfadb899e2a3525ea7a1d85a4255ca4e8a3",
+      "subject": "Bare lock acquires without a barrier made ldaxr by the rewriter: BotW 1.6.0 ran a job twice (issue #251, PR #562)"
+    }
+  ],
+  "excluded_upstream_files": [
+    {
+      "path": "docs/images/super-monkey-ball-banana-rumble.jpg",
+      "strategy": "upstream-exact",
+      "sources": {
+        "base": null,
+        "touch": null,
+        "upstream": {
+          "git_blob": "8384121ccd86d8f85ae356c5372904dde28a1566",
+          "mode": "100644",
+          "sha256": "a3ebd450bee03ee71781c84abf6abdc93d4f12df9ccd12007fe324340693970e"
+        }
+      },
+      "result": {
+        "sha256": "a3ebd450bee03ee71781c84abf6abdc93d4f12df9ccd12007fe324340693970e",
+        "git_blob": "8384121ccd86d8f85ae356c5372904dde28a1566",
+        "mode": "100644"
+      },
+      "reason": "Decorative gallery screenshot intentionally excluded from source-only build orchestration; all source, profile and tool changes are retained."
+    }
+  ]
+}
