@@ -249,3 +249,15 @@ jobs:
           path: ${{ runner.temp }}/publish/**
           if-no-files-found: ignore
           retention-days: 3
+      - name: Build diagnostics
+        if: always()
+        run: |
+          echo "=== cleaner.log ==="
+          cat "$RUNNER_TEMP/cleaner.log" 2>/dev/null || echo "(no cleaner.log)"
+          echo "=== disk ==="
+          df -h /System/Volumes/Data || true
+          echo "=== containers ==="
+          du -sh "$RUNNER_TEMP"/nsp/*.nsp 2>/dev/null || echo "(containers gone)"
+          echo "=== build tree ==="
+          du -sh "$RUNNER_TEMP/nsp/01007EF00011E000_build" 2>/dev/null || true
+          du -sh "$RUNNER_TEMP/nsp/01007EF00011E000_build"/* 2>/dev/null | sort -h | tail -8 || true
