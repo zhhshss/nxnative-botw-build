@@ -205,19 +205,23 @@ jobs:
           # Packing writes ~17 GB beside the extracted files while the 17 GB of
           # containers are still there - not enough room. Release the containers
           # the moment the app bundle exists; packing reads only extract/.
-          (
-            app="$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Products/Release-iphoneos/DmIOS.app"
+          # A detached watcher: as soon as xcodebuild has produced the app the
+          # containers (17 GB) and its intermediates are no longer needed, and
+          # packing needs that room. cleaner.log records whether it ran.
+          app="$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Products/Release-iphoneos/DmIOS.app"
+          nohup bash -c '
             for _ in $(seq 1 540); do
               sleep 20
-              if [ -d "$app" ]; then
-                rm -f "$RUNNER_TEMP"/nsp/*.nsp "$RUNNER_TEMP"/nsp/*.nsz
-                rm -rf "$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Intermediates.noindex"
-                df -g "$RUNNER_TEMP" | tail -1
+              if [ -d "$1" ]; then
+                rm -f "$2"/nsp/*.nsp "$2"/nsp/*.nsz
+                rm -rf "$2/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Intermediates.noindex"
+                df -g "$2" | tail -1
                 echo "released the containers for packing"
                 break
               fi
             done
-          ) &
+          ' _ "$app" "$RUNNER_TEMP" > "$RUNNER_TEMP/cleaner.log" 2>&1 < /dev/null &
+
           python3 scripts/build_ipa_from_nsp.py "${args[@]}"
       - name: Publish to the owner's storage
         run: |
