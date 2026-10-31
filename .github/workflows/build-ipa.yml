@@ -150,6 +150,17 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version >/dev/null 2>&1 || xcodebuild -downloadPlatform iOS
           xcrun -sdk iphoneos metal --version >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
           python3 -c "import lz4.block, capstone, fontTools; print('python deps ok')"
+      - name: Restore the shader tools the tree filter drops
+        working-directory: ${{ runner.temp }}/stage
+        run: |
+          set -euo pipefail
+          # prepare_source_tree.py keeps only the licences of these two tool
+          # directories; the build needs the translator and spirv-cross too.
+          for d in dmsh_xlate_bin spirv_cross_bin; do
+            cp -Rp "$GITHUB_WORKSPACE/upstream/dm/gfx/tools/$d/." "dm/gfx/tools/$d/"
+          done
+          chmod +x dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
+          ls -l dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
       - name: Build the IPA
         working-directory: ${{ runner.temp }}/stage
         run: |
