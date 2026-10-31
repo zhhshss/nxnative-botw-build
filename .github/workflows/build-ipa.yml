@@ -136,6 +136,20 @@ jobs:
             echo "::error::this runner has ${free_gb} GB free; the containers plus their extraction need about 25 GB"
             exit 1
           fi
+      - name: Install build prerequisites
+        run: |
+          set -x
+          python3 -m pip install --quiet --break-system-packages lz4 "capstone>=5,<6" fonttools
+          command -v xcodegen >/dev/null || brew install --quiet xcodegen
+          command -v zstd >/dev/null || brew install --quiet zstd
+          command -v glslangValidator >/dev/null || brew install --quiet glslang
+          if ! command -v dotnet >/dev/null; then
+            curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir "$HOME/.dotnet"
+            echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          fi
+          xcrun --sdk iphoneos --show-sdk-version >/dev/null 2>&1 || xcodebuild -downloadPlatform iOS
+          xcrun -sdk iphoneos metal --version >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
+          python3 -c "import lz4.block, capstone, fontTools; print('python deps ok')"
       - name: Build the IPA
         working-directory: ${{ runner.temp }}/stage
         run: |
