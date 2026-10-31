@@ -129,8 +129,11 @@ jobs:
           [ -z "${TITLE_KEYS:-}" ] || printf '%s\n' "$TITLE_KEYS" > "$RUNNER_TEMP/title.keys"
           ls -l "$dir"; df -h "$RUNNER_TEMP"
           free_gb=$(df -g "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
-          if [ "${free_gb:-0}" -lt 60 ]; then
-            echo "::error::this runner has ${free_gb} GB free; the containers, their extraction and the shader caches need about 60 GB - use a larger macOS runner"
+          # The build script checks again for itself right before extracting
+          # (extracted size + 6 GB) and before packing; this gate only stops a
+          # hopelessly small runner early.
+          if [ "${free_gb:-0}" -lt 25 ]; then
+            echo "::error::this runner has ${free_gb} GB free; the containers plus their extraction need about 25 GB"
             exit 1
           fi
       - name: Build the IPA
