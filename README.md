@@ -39,6 +39,8 @@ python3 scripts/fetch_ipa.py <successful-run-id> \
 
 The optional `--token-file` and `--public-base` arguments print a link for an existing owner-controlled file server. Game containers, RomFS and keys are excluded from the shader cache.
 
+`scripts/serve_owner_files.py` provides the token-protected file server for build inputs and IPA downloads. It supports HEAD, suffix ranges, bounded ranges and resumed downloads. The token is read from a file. On the owner's server the `botw-feed.service` user service supervises it independently of the coding session.
+
 ## Reproducibility
 
 `source-pins.json` records both source commits. Tool archives are pinned by SHA-256, and staging records every applied patch and overlay. SDK/toolchain downloads are used only on the runner and excluded from artifacts. Host artifacts include source and license provenance. The complete IPA job returns the owner's game data through their configured storage or an encrypted artifact.

@@ -5,11 +5,45 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import threading
 import unittest
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 import zipfile
 
 from cryptography.exceptions import InvalidTag
-from scripts import fetch_ipa, shader_cache
+from scripts import fetch_ipa, shader_cache, serve_owner_files
+
+
+class ForwardOnly(io.BytesIO):
+    def seek(self, *args):
+        raise io.UnsupportedOperation("forward-only ZIP writer")
+
+
+class OwnerFileServerTests(unittest.TestCase):
+    def test_ranges_head_and_wrong_token_over_http(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root / "app.ipa").write_bytes(b"0123456789")
+            server = serve_owner_files.create_server(root, "127.0.0.1", 0, "test-token")
+            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+            url = f"http://127.0.0.1:{server.server_port}/test-token/app.ipa"
+            try:
+                for header, expected in (("bytes=0-3", b"0123"), ("bytes=-3", b"789"),
+                                         ("bytes=8-99", b"89"), ("bytes=3-", b"3456789")):
+                    with urlopen(Request(url, headers={"Range": header}), timeout=5) as response:
+                        self.assertEqual(response.status, 206)
+                        self.assertEqual(response.read(), expected)
+                with urlopen(Request(url, method="HEAD"), timeout=5) as response:
+                    self.assertEqual(response.headers["Content-Length"], "10")
+                    self.assertEqual(response.read(), b"")
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(Request(url, headers={"Range": "bytes=10-"}), timeout=5)
+                self.assertEqual(error.exception.code, 416)
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(url.replace("test-token", "wrong-token"), timeout=5)
+                self.assertEqual(error.exception.code, 404)
+            finally:
+                server.shutdown(); server.server_close(); thread.join()
 
 
 class ShaderCacheTests(unittest.TestCase):
@@ -99,23 +133,36 @@ class IPAPickupTests(unittest.TestCase):
         subprocess.run(["zip", "-0", "-q", "-j", "-e", "-P", self.password,
                         str(inner), str(self.ipa)], check=True)
         self.outer = self.root / "artifact.zip"
-        with zipfile.ZipFile(self.outer, "w", compression=zipfile.ZIP_DEFLATED) as zip:
+        stream = ForwardOnly()
+        with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED) as zip:
             zip.writestr("SHA256.txt", b"manifest deliberately comes first\n")
             with zip.open(inner.name, "w", force_zip64=True) as entry:
                 entry.write(inner.read_bytes())
+        self.outer.write_bytes(stream.getvalue())
+
+    def extract(self, output, password, expected):
+        producer = subprocess.Popen(["cat", str(self.outer)], stdout=subprocess.PIPE,
+                                    stderr=subprocess.DEVNULL)
+        try:
+            fetch_ipa.extract_stream(producer.stdout, output, password, self.name, expected)
+        finally:
+            producer.stdout.close()
+            try:
+                producer.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                producer.kill(); producer.wait()
 
     def test_nested_zip64_stream_produces_only_the_verified_ipa(self):
         output = self.root / "download.ipa"
-        with self.outer.open("rb") as stream:
-            fetch_ipa.extract_stream(stream, output, self.password, self.name, self.expected)
+        self.extract(output, self.password, self.expected)
         self.assertEqual(output.read_bytes(), self.ipa.read_bytes())
         self.assertFalse(output.with_name(output.name + ".partial").exists())
 
     def test_bad_password_and_sha_never_publish_partial_or_stale_content(self):
         output = self.root / "download.ipa"
         for password, digest in (("wrong", self.expected), (self.password, "0" * 64)):
-            with self.outer.open("rb") as stream, self.assertRaises(ValueError):
-                fetch_ipa.extract_stream(stream, output, password, self.name, digest)
+            with self.assertRaises(ValueError):
+                self.extract(output, password, digest)
             self.assertFalse(output.exists())
             self.assertFalse(output.with_name(output.name + ".partial").exists())
 
