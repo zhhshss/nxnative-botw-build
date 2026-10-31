@@ -161,6 +161,19 @@ jobs:
           done
           chmod +x dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
           ls -l dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
+      - name: Restore the SwiftUI launcher for the iOS build
+        working-directory: ${{ runner.temp }}/stage
+        run: |
+          set -euo pipefail
+          # The stage swaps the upstream SwiftUI launcher for xbunax's Objective-C
+          # port, because the Windows object build cannot compile Swift. An IPA is
+          # built with Xcode, where the SwiftUI launcher is the real one; both
+          # export dm_show_launcher, so the port has to go.
+          for f in Launcher.swift LauncherRow.swift LauncherSettings.swift; do
+            cp -p "$GITHUB_WORKSPACE/upstream/dm/ios/Sources/$f" "dm/ios/Sources/$f"
+          done
+          rm -f dm/ios/Sources/DmLauncher.m
+          ls -l dm/ios/Sources/Launcher*.swift
       - name: Build the IPA
         working-directory: ${{ runner.temp }}/stage
         run: |
