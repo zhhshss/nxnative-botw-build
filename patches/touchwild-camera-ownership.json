@@ -9,7 +9,7 @@
     {
       "path": "dm/ios/tests/ios_look_harness.m",
       "before_sha256": "c18308824b576b7375499798ff243d680ff6a9bf83760b74644fa2210ea6767f",
-      "after_sha256": "660c21cf7b8b99e5cf6c9a8cf9c44a9c90ab3221892de620d5fa87d8a72fb652"
+      "after_sha256": "973fb7622826c0578e7a7936e512bfff65ec660e3e2dff8e12ba67382de5f135"
     },
     {
       "path": "dm/host/tests/t_device_motion.c",
@@ -22,5 +22,5 @@
       "after_sha256": "b1d2baf9d23154d61e04ea8ce17829369bfd75cd477d5b22c4a543e180c00232"
     }
   ],
-  "patch_sha256": "b98c53e029064fc1344c2a5071f8f3a7e1c174a94a82c4ea6c62e0fe583b2259"
+  "patch_sha256": "46f22bd820248e8af77bad39c7e19b3cbeb924a1474811f082188d0594a28718"
 }

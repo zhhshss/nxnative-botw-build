@@ -247,11 +247,11 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
 +    // Ownership passes to a new finger once the cancelled owner has lifted. UIKit
 +    // never re-delivers touchesBegan for a finger that is still down, so begin a
 +    // fresh touch here instead of replaying the waiting one.
-+    FakeTouch *replacement = touch(CGRectGetMidX(resizedBounds), CGRectGetMidY(resizedBounds));
-+    began(view,replacement);
++    FakeTouch *freshOwner = touch(CGRectGetMidX(resizedBounds), CGRectGetMidY(resizedBounds));
++    began(view,freshOwner);
      CHECK(g_menu_pointer_count == 3 && g_menu_pointer_events[2].phase == DM_BOTW_MENU_BEGIN,
            "menu pointer ownership can begin again after the cancelled touch lifts");
-+    ended(view,replacement,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
++    ended(view,freshOwner,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
      ended(view,secondary,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
      view.bounds = oldBounds; [view layoutIfNeeded];
  
