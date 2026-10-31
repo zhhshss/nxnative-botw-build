@@ -104,10 +104,6 @@ jobs:
           sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
           rm -rf ~/Library/Developer/CoreSimulator ~/Library/Caches/* ~/Library/Developer/Xcode/DerivedData || true
           rm -rf ~/Library/Android ~/Library/Developer/Xamarin ~/.gradle/caches || true
-          # Platforms this build never touches (Watch/tvOS); the iOS ones stay.
-          for pf in WatchOS AppleTVOS WatchSimulator AppleTVSimulator DriverKit; do
-            sudo rm -rf "/Applications/Xcode_27.1.app/Contents/Developer/Platforms/$pf.platform" || true
-          done
           df -h /System/Volumes/Data
       - name: Fetch the owner's game containers
         run: |
@@ -209,12 +205,14 @@ jobs:
           # containers (17 GB) and its intermediates are no longer needed, and
           # packing needs that room. cleaner.log records whether it ran.
           app="$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Products/Release-iphoneos/DmIOS.app"
+          # Wait for the linked executable, not the bundle directory: xcodebuild
+          # creates DmIOS.app before it compiles and touching its build database
+          # then breaks the build. Only the containers are removed.
           nohup bash -c '
             for _ in $(seq 1 540); do
               sleep 20
-              if [ -d "$1" ]; then
+              if [ -f "$1/DmIOS" ]; then
                 rm -f "$2"/nsp/*.nsp "$2"/nsp/*.nsz
-                rm -rf "$2/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Intermediates.noindex"
                 df -g "$2" | tail -1
                 echo "released the containers for packing"
                 break
@@ -261,3 +259,5 @@ jobs:
           echo "=== build tree ==="
           du -sh "$RUNNER_TEMP/nsp/01007EF00011E000_build" 2>/dev/null || true
           du -sh "$RUNNER_TEMP/nsp/01007EF00011E000_build"/* 2>/dev/null | sort -h | tail -8 || true
+          echo "=== xcodebuild log tail ==="
+          tail -60 "$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/build.log" 2>/dev/null || echo "(no build.log)"
