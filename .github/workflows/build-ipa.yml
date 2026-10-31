@@ -1,0 +1,139 @@
+# Builds a complete, unsigned BOTW IPA on a Mac runner from the owner's own
+# game containers and prod.keys. Nothing copyrighted is committed or exposed:
+# the containers come from storage the owner controls, and the finished IPA
+# goes back to the owner (secret R2 upload) or leaves as an encrypted artifact
+# that the owner deletes after pickup.
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions):
+#   PROD_KEYS            the owner's prod.keys contents (never printed)
+#   TITLE_KEYS           optional title.keys contents
+#   GAME_BASE_URL        download URL of the base game container  (owner's storage)
+#   GAME_UPDATE_URL      download URL of the 1.9.0 update container
+#   GAME_DLC_URL         optional DLC container
+#   IPA_ZIP_PASSWORD     password for the encrypted artifact (when R2 is unused)
+#   R2_ENDPOINT          https://<account>.r2.cloudflarestorage.com (optional)
+#   R2_BUCKET            bucket for the finished IPA (optional)
+#   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_PREFIX   (optional)
+#
+# The container filenames are taken from the URLs' own basenames so the build
+# keeps recognising NSP / XCI / NSZ / XCZ. Keep the URLs private: dispatch
+# inputs are visible on a public repository, so none are used here.
+name: Build BOTW IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Version to pack, e.g. v65536 (empty = newest in the folder)'
+        required: false
+        default: ''
+      romfs:
+        description: 'bundle = game files inside the IPA; separate = IPA only, push the RomFS afterwards'
+        required: false
+        default: 'bundle'
+      gpu:
+        description: 'NVN pipeline archives, e.g. g18p (empty = default)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ipa:
+    runs-on: xcode-27
+    timeout-minutes: 300
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      PROD_KEYS: ${{ secrets.PROD_KEYS }}
+      TITLE_KEYS: ${{ secrets.TITLE_KEYS }}
+      GAME_BASE_URL: ${{ secrets.GAME_BASE_URL }}
+      GAME_UPDATE_URL: ${{ secrets.GAME_UPDATE_URL }}
+      GAME_DLC_URL: ${{ secrets.GAME_DLC_URL }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_PREFIX: ${{ secrets.R2_PREFIX }}
+      IPA_ZIP_PASSWORD: ${{ secrets.IPA_ZIP_PASSWORD }}
+      PACKAGE: ${{ inputs.package }}
+      ROMFS: ${{ inputs.romfs }}
+      GPU: ${{ inputs.gpu }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          path: upstream
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: xbunax/nxnative
+          ref: d1ba3e97876da86ff616c6d8e8d684b968fb8c5d
+          path: fork
+          persist-credentials: false
+      - name: Prepare the reviewed source tree
+        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage"
+      - name: Environment check
+        run: |
+          xcodebuild -version || true
+          python3 -V
+          sw_vers
+          df -h "$RUNNER_TEMP" "$HOME"
+      - name: Fetch the owner's game containers
+        run: |
+          set -euo pipefail
+          : "${GAME_BASE_URL:?set the GAME_BASE_URL secret}"
+          : "${GAME_UPDATE_URL:?set the GAME_UPDATE_URL secret}"
+          : "${PROD_KEYS:?set the PROD_KEYS secret}"
+          dir="$RUNNER_TEMP/nsp"; mkdir -p "$dir"
+          fetch() { local url="$1" name; name="$(basename "${url%%\?*}")"; [ -n "$name" ] || name="game.nsp"; curl -fL --retry 3 --retry-delay 5 -o "$dir/$name" "$url"; }
+          fetch "$GAME_BASE_URL"
+          fetch "$GAME_UPDATE_URL"
+          [ -z "${GAME_DLC_URL:-}" ] || fetch "$GAME_DLC_URL"
+          printf '%s\n' "$PROD_KEYS" > "$RUNNER_TEMP/prod.keys"
+          [ -z "${TITLE_KEYS:-}" ] || printf '%s\n' "$TITLE_KEYS" > "$RUNNER_TEMP/title.keys"
+          ls -l "$dir"; df -h "$RUNNER_TEMP"
+      - name: Build the IPA
+        working-directory: ${{ runner.temp }}/stage
+        run: |
+          set -euo pipefail
+          args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out" --no-keep-extracted)
+          [ -z "$PACKAGE" ] || args+=(-p "$PACKAGE")
+          [ "$ROMFS" = "separate" ] || args+=(--romfs bundle)
+          [ "$ROMFS" = "separate" ] && args+=(--romfs separate)
+          [ -z "$GPU" ] || args+=(--gpu "$GPU")
+          mkdir -p "$RUNNER_TEMP/out"
+          python3 scripts/build_ipa_from_nsp.py "${args[@]}"
+      - name: Publish to the owner's storage
+        run: |
+          set -euo pipefail
+          ipa=$(find "$RUNNER_TEMP/out" "$RUNNER_TEMP/nsp" -maxdepth 3 -name '*.ipa' | head -1)
+          [ -n "$ipa" ] || { echo 'no IPA produced'; exit 1; }
+          echo "IPA: $ipa ($(du -h "$ipa" | cut -f1))"
+          sha256sum "$ipa"
+          if [ -n "${R2_BUCKET:-}" ]; then
+            key="${R2_PREFIX:-botw-ipa}/$(basename "$ipa")"
+            AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+              aws --endpoint-url "$R2_ENDPOINT" s3 cp "$ipa" "s3://$R2_BUCKET/$key"
+            echo "uploaded to s3://$R2_BUCKET/$key"
+          else
+            : "${IPA_ZIP_PASSWORD:?set R2_BUCKET for a direct upload, or IPA_ZIP_PASSWORD for a protected artifact}"
+            mkdir -p "$RUNNER_TEMP/publish"
+            ( cd "$RUNNER_TEMP/publish" && zip -q -j -e -P "$IPA_ZIP_PASSWORD" "ipa.zip" "$ipa" && mv ipa.zip "$(basename "$ipa").zip" )
+            sha256sum "$ipa" > "$RUNNER_TEMP/publish/SHA256.txt"
+            echo "artifact is encrypted; delete it after pickup"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: botw-ipa-encrypted
+          path: ${{ runner.temp }}/publish/**
+          if-no-files-found: ignore
+          retention-days: 3
