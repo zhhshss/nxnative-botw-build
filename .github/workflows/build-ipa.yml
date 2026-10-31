@@ -89,6 +89,20 @@ jobs:
           python3 -V
           sw_vers
           df -h "$RUNNER_TEMP" "$HOME"
+      - name: Reclaim disk space
+        run: |
+          set -x
+          df -h /System/Volumes/Data
+          du -sh /Applications/Xcode*.app 2>/dev/null || true
+          # Keep only the Xcode DEVELOPER_DIR points at; drop the rest of the image's ballast.
+          for x in /Applications/Xcode*.app; do
+            [ "$(basename "$x")" = "Xcode_27.1.app" ] && continue
+            sudo rm -rf "$x" || true
+          done
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
+          rm -rf ~/Library/Developer/CoreSimulator ~/Library/Caches/* ~/Library/Developer/Xcode/DerivedData || true
+          rm -rf ~/Library/Android ~/Library/Developer/Xamarin ~/.gradle/caches || true
+          df -h /System/Volumes/Data
       - name: Fetch the owner's game containers
         run: |
           set -euo pipefail
