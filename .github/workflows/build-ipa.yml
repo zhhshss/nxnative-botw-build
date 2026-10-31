@@ -84,7 +84,7 @@ jobs:
           path: fork
           persist-credentials: false
       - name: Prepare the reviewed source tree
-        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage"
+        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --ipa-ci
       - name: Environment check
         run: |
           xcodebuild -version || true
@@ -153,7 +153,7 @@ jobs:
       - name: Install build prerequisites
         run: |
           set -x
-          python3 -m pip install --quiet --break-system-packages lz4 "capstone>=5,<6" fonttools
+          python3 -m pip install --quiet --break-system-packages lz4 "capstone>=5,<6" fonttools cryptography
           command -v xcodegen >/dev/null || brew install --quiet xcodegen
           command -v zstd >/dev/null || brew install --quiet zstd
           command -v glslangValidator >/dev/null || brew install --quiet glslang
@@ -188,46 +188,72 @@ jobs:
           done
           rm -f dm/ios/Sources/DmLauncher.m
           ls -l dm/ios/Sources/Launcher*.swift
+      - name: Identify reusable shader inputs
+        id: shader-key
+        if: env.IPA_ZIP_PASSWORD != ''
+        run: |
+          python3 scripts/shader_cache.py key --source "$RUNNER_TEMP/stage" \
+            --containers "$RUNNER_TEMP/nsp" --package "$PACKAGE" --gpu "$GPU" \
+            --output "$RUNNER_TEMP/shader-cache.key"
+      - name: Restore the encrypted shader cache
+        id: shader-cache
+        if: steps.shader-key.outputs.key != ''
+        continue-on-error: true
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/botw-shader-cache.bin
+          key: botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-${{ github.run_id }}
+          restore-keys: botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-
+      - name: Authenticate and unpack cached shader outputs
+        id: shader-unpack
+        if: steps.shader-cache.outputs.cache-matched-key != ''
+        continue-on-error: true
+        run: |
+          python3 scripts/shader_cache.py restore --cache "$RUNNER_TEMP/botw-shader-cache.bin" \
+            --key-file "$RUNNER_TEMP/shader-cache.key" \
+            --work "$RUNNER_TEMP/nsp/01007EF00011E000_build"
       - name: Build the IPA
+        id: build-ipa
         working-directory: ${{ runner.temp }}/stage
+        env:
+          DM_CI_RECLAIM_INPUTS: '1'
         run: |
           set -euo pipefail
-          args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out" --no-keep-extracted)
+          args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out/BOTW-iPad-Touch.ipa")
           [ -z "$PACKAGE" ] || args+=(-p "$PACKAGE")
-          [ "$ROMFS" = "separate" ] || args+=(--romfs bundle)
-          [ "$ROMFS" = "separate" ] && args+=(--romfs separate)
+          if [ "$ROMFS" = "separate" ]; then
+            args+=(--romfs separate --keep-extracted)
+          else
+            args+=(--romfs bundle --no-keep-extracted)
+          fi
           [ -z "$GPU" ] || args+=(--gpu "$GPU")
           mkdir -p "$RUNNER_TEMP/out"
-          # Packing writes ~17 GB beside the extracted files while the 17 GB of
-          # containers are still there - not enough room. Release the containers
-          # the moment the app bundle exists; packing reads only extract/.
-          # A detached watcher: as soon as xcodebuild has produced the app the
-          # containers (17 GB) and its intermediates are no longer needed, and
-          # packing needs that room. cleaner.log records whether it ran.
-          app="$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Products/Release-iphoneos/DmIOS.app"
-          # Wait for the linked executable, not the bundle directory: xcodebuild
-          # creates DmIOS.app before it compiles and touching its build database
-          # then breaks the build. Only the containers are removed.
-          nohup bash -c '
-            for _ in $(seq 1 540); do
-              sleep 20
-              if [ -f "$1/DmIOS" ]; then
-                rm -f "$2"/nsp/*.nsp "$2"/nsp/*.nsz
-                df -g "$2" | tail -1
-                echo "released the containers for packing"
-                break
-              fi
-            done
-          ' _ "$app" "$RUNNER_TEMP" > "$RUNNER_TEMP/cleaner.log" 2>&1 < /dev/null &
-
-          python3 scripts/build_ipa_from_nsp.py "${args[@]}"
+          # The reviewed patch releases only the runner's downloaded copies,
+          # synchronously after every game/DLC extraction has finished.
+          python3 scripts/build_ipa_from_nsp.py "${args[@]}" | tee "$RUNNER_TEMP/ipa-build.log"
+      - name: Encrypt completed shader and pipeline outputs
+        id: shader-cache-pack
+        if: ${{ always() && !cancelled() && steps.shader-key.outputs.key != '' && steps.shader-unpack.outcome != 'success' }}
+        continue-on-error: true
+        run: |
+          python3 scripts/shader_cache.py save --cache "$RUNNER_TEMP/botw-shader-cache.bin" \
+            --key-file "$RUNNER_TEMP/shader-cache.key" \
+            --work "$RUNNER_TEMP/nsp/01007EF00011E000_build"
+      - name: Save the encrypted shader cache
+        if: ${{ always() && !cancelled() && steps.shader-cache-pack.outputs.ready == 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/botw-shader-cache.bin
+          key: botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-${{ github.run_id }}
       - name: Publish to the owner's storage
         run: |
           set -euo pipefail
-          ipa=$(find "$RUNNER_TEMP/out" "$RUNNER_TEMP/nsp" -maxdepth 3 -name '*.ipa' | head -1)
-          [ -n "$ipa" ] || { echo 'no IPA produced'; exit 1; }
+          ipa="$RUNNER_TEMP/out/BOTW-iPad-Touch.ipa"
+          [ -s "$ipa" ] || { echo 'no IPA produced'; exit 1; }
           echo "IPA: $ipa ($(du -h "$ipa" | cut -f1))"
-          sha256sum "$ipa"
+          sha=$(shasum -a 256 "$ipa" | awk '{print $1}')
+          printf '%s  %s\n' "$sha" "$ipa"
           if [ -n "${R2_BUCKET:-}" ]; then
             key="${R2_PREFIX:-botw-ipa}/$(basename "$ipa")"
             command -v aws >/dev/null || brew install awscli
@@ -237,8 +263,8 @@ jobs:
           else
             : "${IPA_ZIP_PASSWORD:?set R2_BUCKET for a direct upload, or IPA_ZIP_PASSWORD for a protected artifact}"
             mkdir -p "$RUNNER_TEMP/publish"
-            ( cd "$RUNNER_TEMP/publish" && zip -q -j -e -P "$IPA_ZIP_PASSWORD" "ipa.zip" "$ipa" && mv ipa.zip "$(basename "$ipa").zip" )
-            sha256sum "$ipa" > "$RUNNER_TEMP/publish/SHA256.txt"
+            ( cd "$RUNNER_TEMP/publish" && zip -0 -q -j -e -P "$IPA_ZIP_PASSWORD" "ipa.zip" "$ipa" && mv ipa.zip "$(basename "$ipa").zip" )
+            printf '%s  %s\n' "$sha" "$(basename "$ipa")" > "$RUNNER_TEMP/publish/SHA256.txt"
             echo "artifact is encrypted; delete it after pickup"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -247,11 +273,12 @@ jobs:
           path: ${{ runner.temp }}/publish/**
           if-no-files-found: ignore
           retention-days: 3
+          compression-level: 0
       - name: Build diagnostics
         if: always()
         run: |
-          echo "=== cleaner.log ==="
-          cat "$RUNNER_TEMP/cleaner.log" 2>/dev/null || echo "(no cleaner.log)"
+          echo "=== input reclamation ==="
+          grep -F 'CI: released' "$RUNNER_TEMP/ipa-build.log" 2>/dev/null || echo "(extraction did not finish)"
           echo "=== disk ==="
           df -h /System/Volumes/Data || true
           echo "=== containers ==="

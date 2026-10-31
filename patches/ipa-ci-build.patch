@@ -1,0 +1,50 @@
+diff --git a/scripts/build_ipa_from_nsp.py b/scripts/build_ipa_from_nsp.py
+--- a/scripts/build_ipa_from_nsp.py
++++ b/scripts/build_ipa_from_nsp.py
+@@ -1927,9 +1927,9 @@
+     pso_pairs = g.table('pso_pairs.tsv')
+     if not pso_pairs.is_file(): pso_pairs = sh / 'pso_pairs.tsv'   # the split's copy is a shader input too (vs_pad)
+     if pkg_key:
+         PROG.set(step='checking the inputs')
+-        key = fingerprint(pkg_key, ('files', chain_files(repo)), ('stat', xlate.parent), ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
++        key = fingerprint(pkg_key, ('files', chain_files(repo)), ('files', [xlate.parent / rel for rel, _ in files_under(xlate.parent)]), ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
+                           {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')}, env=env)
+         note = next((n for k in ((kmac, kf) if mac else (kf,)) if (n := reused(k, key)) is not None), None)
+         # the libraries are the last build's, so are tables that name their stamp; a missing or stale one is made from that build's Mac outputs, and without them the step runs again
+         if next(libs.glob('*_b.metallib'), None) and note is not None and chain_tables(py, repo, sh, env, logs, g, chain):
+@@ -2391,8 +2391,25 @@
+         if other and patched: report_fix_coverage(patched, other, reg)
+     if provisional:
+         say(f'[RED] this {artifact} was built from a provisional game profile and the game may not boot: {g.dir}')
+         say(f'  bring-up on the Mac: DM_GAMES_DIR="{g.dir.parent}" make -C dm/host GAME={g.id} dmhost, see docs/agents')
++
++
++def reclaim_ci_inputs(nsp_dir, env):
++    """Release downloaded CI copies after all game and DLC extraction succeeds."""
++    if env.get('DM_CI_RECLAIM_INPUTS') != '1':
++        return 0
++    runner_temp = env.get('RUNNER_TEMP')
++    if (env.get('GITHUB_ACTIONS') != 'true' or not runner_temp or
++            nsp_dir.resolve() != Path(runner_temp).resolve() / 'nsp'):
++        raise BuildError('CI input reclamation requires RUNNER_TEMP/nsp on a GitHub Actions runner')
++    removed = 0
++    for container in nsp_dir.iterdir():
++        if container.is_file() and container.suffix.lower() in {'.nsp', '.nsz', '.xci', '.xcz'}:
++            container.unlink()
++            removed += 1
++    say(f'CI: released {removed} input container copies after extraction; {free_gb(nsp_dir):.1f} GB free')
++    return removed
+ 
+ 
+ def main(args=None):
+     args = args or parse_args([])
+@@ -2560,8 +2577,9 @@
+     for on, k in ((glslc, 'glslc_capture'), (vkcap, 'vk_capture'), (glcap, 'gl_capture'), (uedec, 'ue_decode'), (gfx == 'nvn' and src['oodle_packs'][0], 'oodle_packs'), (gfx == 'nvn' and src['ue_legacy'][0], 'ue_legacy')):
+         if on: say(src[k][1])
+     PROG.add(glslc + vkcap + glcap + uedec + (gfx == 'nvn'))
+     aoc = extract_aoc(nx_cmd, keys, repo, work, app, fam, logs)
++    reclaim_ci_inputs(nsp_dir, env)
+     dlc_roms = sorted(p for p in aoc.iterdir() if p.is_dir() or p.suffix == '.img') if aoc else []
+     base = next((dirs[v] for v in versions if picks[v][1] is None), dirs[versions[0]])   # the folder the base game was extracted to alone
+     # the app name and bundle ID both come from the base NSP: the game name in its control data, and a bundle ID from its title ID; a setting / the command line overrides them
+     app_name = args.app_name or APP_NAME or nacp.name(base / 'control.nacp')

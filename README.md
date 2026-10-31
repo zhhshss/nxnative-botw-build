@@ -20,13 +20,30 @@ The successful run above predates the Touch the Wild integration and is not vali
 - Touch the Wild corrects the game projection and UI separately. On a narrower iPad screen, it retains the vertical field of view and shows less of the scene horizontally than at 16:9. Physical iPad acceptance is still needed.
 - The Windows Objective-C launcher does not yet port Touch the Wild's SwiftUI visual layout editor or game-data import bridge. A host-object build cannot prove those final link/UI requirements complete.
 
-The intended final delivery is now a complete unsigned IPA for reinstall. Building it still requires the BOTW base game and 1.9.0 update, plus keys, outside this public repository. Existing saves must be backed up before replacement. The optional incremental tooling remains available, but exporting selected resources is no longer the preferred user workflow.
+The complete IPA workflow builds an unsigned IPA for reinstall using the owner's BOTW base game, 1.9.0 update, DLC and keys. The optional incremental tooling remains available.
+
+## Complete IPA build and pickup
+
+Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its IPA job restores the iOS SwiftUI launcher and shader tools, writes `out/BOTW-iPad-Touch.ipa`, and publishes to the owner's R2 storage or as a password-protected Actions artifact.
+
+The reviewed `--ipa-ci` stage releases downloaded container copies synchronously after all game and DLC extraction succeeds. Reclamation requires the explicit CI flag and the runner's `RUNNER_TEMP/nsp` folder. Compile products remain available throughout Xcode's build.
+
+Completed shaders and GPU pipeline archives are cached as an AES-256-GCM encrypted archive. The cache namespace covers game-file contents, shader sources and profiles, translator binaries, compiler/SDK versions, GPU and password rotation. Native build fingerprints still validate restored outputs. Translator fingerprints use binary contents so a fresh checkout timestamp does not force recompilation. A completed shader build can be cached even if a later Xcode or packing step fails. The previous cold build spent about 77 minutes on iOS shaders and 17 minutes on pipelines; a later build can reuse those results. The first cache population still runs the complete shader build.
+
+Pickup streams the outer Actions ZIP and encrypted inner ZIP directly into one IPA, verifies its SHA256 against the successful build log, and checks its app entries before publishing the file. It needs `gh`, `bsdtar` (`libarchive-tools` on Ubuntu), and enough space for one IPA plus 512 MiB:
+
+```sh
+python3 scripts/fetch_ipa.py <successful-run-id> \
+  --output-dir /path/to/downloads --password-file /path/to/ipa-password.txt
+```
+
+The optional `--token-file` and `--public-base` arguments print a link for an existing owner-controlled file server. Game containers, RomFS and keys are excluded from the shader cache.
 
 ## Reproducibility
 
-`source-pins.json` records both source commits. Tool archives are pinned by SHA-256, and staging records every applied patch and overlay. SDK/toolchain downloads are used only on the runner and excluded from artifacts. Host artifacts include source and license provenance; game data is never uploaded by this workflow.
+`source-pins.json` records both source commits. Tool archives are pinned by SHA-256, and staging records every applied patch and overlay. SDK/toolchain downloads are used only on the runner and excluded from artifacts. Host artifacts include source and license provenance. The complete IPA job returns the owner's game data through their configured storage or an encrypted artifact.
 
-Trigger **Touch the Wild Windows host and controls** from the Actions tab. The workflow has read-only repository permissions, no game-resource URL input and no secrets requirement. Its separate Mac job uses synthetic host inputs and a disposable iOS simulator, never a physical device.
+Trigger **Touch the Wild Windows host and controls** from the Actions tab. The compile and control checks use public sources, synthetic host inputs and a disposable iOS simulator. The complete IPA job runs on an explicit dispatch when `BUILD_IPA` is enabled and reads the owner's inputs from repository secrets.
 
 ## Licenses
 

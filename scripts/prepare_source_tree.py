@@ -344,7 +344,35 @@ def apply_camera_patch(stage: Path, engine) -> dict:
             "strict_replay_verified": True, "device_tested": False}
 
 
-def prepare(upstream: Path, fork: Path, output: Path, lite: bool) -> dict:
+def apply_ipa_ci_patch(stage: Path, engine) -> dict:
+    patch_path = PATCH_ROOT / "ipa-ci-build.patch"
+    manifest_path = patch_path.with_suffix(".json")
+    patch = patch_path.read_bytes()
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    if manifest["source_commit"] != UPSTREAM_PIN or manifest["patch_sha256"] != digest(patch):
+        raise PreparationError("IPA CI patch identity mismatch")
+    target, _ = engine._parse(patch, None)
+    record = manifest["file"]
+    if target != record["path"]:
+        raise PreparationError("IPA CI patch target differs from its manifest")
+    path = stage / safe_relative(target)
+    before = path.read_bytes()
+    if digest(before) != record["before_sha256"]:
+        raise PreparationError(f"IPA CI patch input differs: {target}")
+    after = engine.apply_bytes(before, patch, target)
+    if digest(after) != record["after_sha256"]:
+        raise PreparationError(f"IPA CI patch result differs: {target}")
+    path.write_bytes(after)
+    provenance = stage / "build-provenance"
+    (provenance / patch_path.name).write_bytes(patch)
+    (provenance / manifest_path.name).write_bytes(manifest_bytes)
+    return {"patch": patch_path.name, "patch_sha256": digest(patch),
+            "manifest_sha256": digest(manifest_bytes), "file": record,
+            "strict_replay_verified": True}
+
+
+def prepare(upstream: Path, fork: Path, output: Path, lite: bool, ipa_ci: bool = False) -> dict:
     verify_pin(upstream, UPSTREAM_PIN)
     verify_pin(fork, FORK_PIN)
     if output.exists() or output.is_symlink():
@@ -412,6 +440,7 @@ def prepare(upstream: Path, fork: Path, output: Path, lite: bool) -> dict:
         if len(records) != 9:
             raise PreparationError("Expected exactly the nine reviewed fork hooks")
         camera_patch = apply_camera_patch(temporary, engine)
+        ipa_ci_patch = apply_ipa_ci_patch(temporary, engine) if ipa_ci else None
         removed = []
         for target in SWIFT_REMOVED:
             path = temporary / target
@@ -461,6 +490,8 @@ def prepare(upstream: Path, fork: Path, output: Path, lite: bool) -> dict:
                                 "dm_imported_game_ready", "dm_show_game_import"],
                             "final_link_ready": False},
         }
+        if ipa_ci_patch:
+            provenance["ipa_ci_build_patch"] = ipa_ci_patch
         (temporary / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
         os.rename(temporary, output)
         return provenance
@@ -475,9 +506,10 @@ def main(argv=None) -> int:
     parser.add_argument("--fork", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path, help="new directory outside the two source checkouts")
     parser.add_argument("--lite", action="store_true", help="host compile stage: keep BOTW and synthetic Mario profiles; omit most docs")
+    parser.add_argument("--ipa-ci", action="store_true", help="apply the reviewed CI input-reclamation and portable shader-cache patch")
     args = parser.parse_args(argv)
     try:
-        result = prepare(args.upstream.resolve(), args.fork.resolve(), args.output.absolute(), args.lite)
+        result = prepare(args.upstream.resolve(), args.fork.resolve(), args.output.absolute(), args.lite, args.ipa_ci)
     except (PreparationError, OSError, ValueError) as exc:
         print(f"Source preparation failed: {exc}", file=sys.stderr)
         return 1

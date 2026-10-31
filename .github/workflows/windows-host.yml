@@ -27,6 +27,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install IPA delivery test prerequisites
+        run: |
+          python3 -m pip install --quiet cryptography
+          sudo apt-get install -y --no-install-recommends libarchive-tools zip
       - name: Source-only input regression checks
         shell: bash
         run: |
@@ -36,7 +40,7 @@ jobs:
             "$RUNNER_TEMP/tests/$name"
           done
           python3 -m compileall -q scripts
-          python3 tests/test_incremental_update.py
+          python3 -m unittest discover -s tests -v
           gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined plugin/tests/zip_test.c -lz -o "$RUNNER_TEMP/tests/zip"
           "$RUNNER_TEMP/tests/zip"
 
@@ -125,7 +129,11 @@ jobs:
           path: fork
           persist-credentials: false
       - name: Prepare the same reviewed source tree as the Windows build
-        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite
+        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite --ipa-ci
+      - name: CI input reclamation and portable shader reuse regressions
+        env:
+          BOTW_CI_STAGE: ${{ runner.temp }}/stage
+        run: python3 -m unittest discover -s tests -p test_ipa_ci_stage.py -v
       - name: Host and real UIKit handler regressions without game files
         run: python3 scripts/check_touch_controls.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/touch-tests"
       - name: Upload regression results
