@@ -143,3 +143,10 @@ jobs:
             ${{ runner.temp }}/touch-tests/uikit/*.crash
           if-no-files-found: warn
           retention-days: 14
+
+  # The finished IPA needs the owner's game data and a Mac; it runs only when
+  # the repository variable BUILD_IPA is true, so ordinary pushes never start it.
+  ipa:
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' }}
+    uses: ./.github/workflows/build-ipa.yml
+    secrets: inherit

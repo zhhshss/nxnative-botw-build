@@ -21,6 +21,7 @@
 name: Build BOTW IPA
 
 on:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:
@@ -60,6 +61,7 @@ jobs:
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       R2_PREFIX: ${{ secrets.R2_PREFIX }}
       IPA_ZIP_PASSWORD: ${{ secrets.IPA_ZIP_PASSWORD }}
+      GAME_ARIA2_LIST: ${{ secrets.GAME_ARIA2_LIST }}
       PACKAGE: ${{ inputs.package }}
       ROMFS: ${{ inputs.romfs }}
       GPU: ${{ inputs.gpu }}
@@ -90,17 +92,33 @@ jobs:
       - name: Fetch the owner's game containers
         run: |
           set -euo pipefail
-          : "${GAME_BASE_URL:?set the GAME_BASE_URL secret}"
-          : "${GAME_UPDATE_URL:?set the GAME_UPDATE_URL secret}"
           : "${PROD_KEYS:?set the PROD_KEYS secret}"
+          if [ -z "${GAME_ARIA2_LIST:-}" ]; then
+            : "${GAME_BASE_URL:?set GAME_ARIA2_LIST, or the GAME_BASE_URL secret}"
+            : "${GAME_UPDATE_URL:?set GAME_ARIA2_LIST, or the GAME_UPDATE_URL secret}"
+          fi
           dir="$RUNNER_TEMP/nsp"; mkdir -p "$dir"
-          fetch() { local url="$1" name; name="$(basename "${url%%\?*}")"; [ -n "$name" ] || name="game.nsp"; curl -fL --retry 3 --retry-delay 5 -o "$dir/$name" "$url"; }
-          fetch "$GAME_BASE_URL"
-          fetch "$GAME_UPDATE_URL"
-          [ -z "${GAME_DLC_URL:-}" ] || fetch "$GAME_DLC_URL"
+          if [ -n "${GAME_ARIA2_LIST:-}" ]; then
+            # The owner exports the list from their own drive; aria2 keeps the
+            # cookies and referer each entry needs and uses 16 connections.
+            printf '%s\n' "$GAME_ARIA2_LIST" > "$RUNNER_TEMP/game.aria2.txt"
+            command -v aria2c >/dev/null || brew install aria2
+            ( cd "$dir" && aria2c -x16 -s16 -j2 -c --file-allocation=none \
+                --summary-interval=60 -i "$RUNNER_TEMP/game.aria2.txt" )
+          else
+            fetch() { local url="$1" name; name="$(basename "${url%%\?*}")"; [ -n "$name" ] || name="game.nsp"; curl -fL --retry 3 --retry-delay 5 -o "$dir/$name" "$url"; }
+            fetch "$GAME_BASE_URL"
+            fetch "$GAME_UPDATE_URL"
+            [ -z "${GAME_DLC_URL:-}" ] || fetch "$GAME_DLC_URL"
+          fi
           printf '%s\n' "$PROD_KEYS" > "$RUNNER_TEMP/prod.keys"
           [ -z "${TITLE_KEYS:-}" ] || printf '%s\n' "$TITLE_KEYS" > "$RUNNER_TEMP/title.keys"
           ls -l "$dir"; df -h "$RUNNER_TEMP"
+          free_gb=$(df -g "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          if [ "${free_gb:-0}" -lt 60 ]; then
+            echo "::error::this runner has ${free_gb} GB free; the containers, their extraction and the shader caches need about 60 GB - use a larger macOS runner"
+            exit 1
+          fi
       - name: Build the IPA
         working-directory: ${{ runner.temp }}/stage
         run: |
