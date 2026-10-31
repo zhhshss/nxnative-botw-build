@@ -219,10 +219,11 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      [view setFull:NO];
      [view layoutIfNeeded];
      CHECK([view dm_testDpadArtworkHidden], "2D layout keeps the 3D D-pad artwork hidden when BOTW relocation is unavailable");
-@@ -769,7 +777,25 @@
+@@ -769,9 +777,29 @@
            "cancelled gesture clears pending R3 tap and does not leave look active");
  
      reset_look(); g_input_sets = 0;
+-    FakeTouch *pendingTap3 = touch(camera.x,camera.y); beganAt(view,pendingTap3,4.0); endedAt(view,pendingTap3,camera.x,camera.y,4.08);
 +    FakeTouch *beforeOverlap = touch(camera.x,camera.y);
 +    beganAt(view,beforeOverlap,3.4); endedAt(view,beforeOverlap,camera.x,camera.y,3.45);
 +    FakeTouch *overlapOld = touch(camera.x,camera.y), *overlapNew = touch(camera.x+2,camera.y+2);
@@ -236,16 +237,21 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
 +          "camera ownership transfer clears a pending R3 sequence and never counts as a tap");
 +
 +    reset_look(); g_input_sets = 0;
-     FakeTouch *pendingTap3 = touch(camera.x,camera.y); beganAt(view,pendingTap3,4.0); endedAt(view,pendingTap3,camera.x,camera.y,4.08);
++    // Keep the first tap outside the 0.35 s double-tap window of the previous
++    // sequence, or that sequence's pending tap completes here instead.
++    FakeTouch *pendingTap3 = touch(camera.x,camera.y); beganAt(view,pendingTap3,4.2); endedAt(view,pendingTap3,camera.x,camera.y,4.28);
 +    // The host owns the map rectangle and drops it whenever the touch HUD goes
 +    // inactive, so re-publish it here: this tap has to be a map tap for the check.
 +    CHECK([view dm_testSetBotwMapRectValid:YES x:.05 y:.16 width:.36 height:.40] &&
 +          [view dm_testBotwMapOwnsPoint:mapPoint],
 +          "the map rectangle is live before its camera-tap priority check");
      FakeTouch *mapAgain = touch(mapPoint.x,mapPoint.y); began(view,mapAgain); ended(view,mapAgain,mapPoint.x,mapPoint.y);
-     FakeTouch *afterMap = touch(camera.x,camera.y); beganAt(view,afterMap,4.2); endedAt(view,afterMap,camera.x,camera.y,4.28);
+-    FakeTouch *afterMap = touch(camera.x,camera.y); beganAt(view,afterMap,4.2); endedAt(view,afterMap,camera.x,camera.y,4.28);
++    FakeTouch *afterMap = touch(camera.x,camera.y); beganAt(view,afterMap,4.4); endedAt(view,afterMap,camera.x,camera.y,4.48);
      BOOL mapSequenceR3 = NO; for (int i=0; i<g_input_sets; i++) mapSequenceR3 |= (g_input_history[i] & DM_BTN_RS) != 0;
-@@ -1236,9 +1262,14 @@
+     CHECK(!mapSequenceR3, "map tap has priority and invalidates the pending camera double tap");
+ 
+@@ -1236,9 +1264,14 @@
      secondary = touch(CGRectGetMidX(resizedBounds), CGRectGetMidY(resizedBounds)); began(view,secondary);
      CHECK(g_menu_pointer_count == 2, "a replacement pointer waits until the resized gesture owner lifts");
      ended(view,primary,CGRectGetMidX(oldBounds),CGRectGetMidY(oldBounds));
@@ -261,7 +267,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      ended(view,secondary,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
      view.bounds = oldBounds; [view layoutIfNeeded];
  
-@@ -1376,20 +1407,93 @@
+@@ -1376,20 +1409,93 @@
      reset_look();
      int prior_begins = g_begin_count;
      FakeTouch *first = touch(600, 150), *second = touch(700, 180);
@@ -364,7 +370,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
  }
  
  static void test_cancel_and_modes(DmGamepad *view) {
-@@ -1659,6 +1763,10 @@
+@@ -1659,6 +1765,10 @@
  }
  
  static void run_tests(DmGamepad *view) {
@@ -375,7 +381,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      test_dpad_art_visibility(view);
      test_botw_button_artwork(view);
      test_botw_virtual_buttons(view);
-@@ -1670,6 +1778,7 @@
+@@ -1670,6 +1780,7 @@
      test_botw_inventory_pointer(view);
      test_motion_orientation();
      test_look_drag(view);
@@ -383,7 +389,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      test_priority_and_multitouch(view);
      test_cancel_and_modes(view);
      reset_look(); g_look_enabled = YES;
-@@ -1702,22 +1811,66 @@
+@@ -1702,22 +1813,66 @@
      });
  }
  
@@ -460,7 +466,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      return YES;
  }
  @end
-@@ -1730,6 +1883,7 @@
+@@ -1730,6 +1885,7 @@
          if (!freopen(log.fileSystemRepresentation, "w", stdout) || dup2(STDOUT_FILENO, STDERR_FILENO) < 0) abort();
          setvbuf(stdout, NULL, _IOLBF, 0);
          setvbuf(stderr, NULL, _IOLBF, 0);
