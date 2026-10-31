@@ -62,6 +62,8 @@ jobs:
       R2_PREFIX: ${{ secrets.R2_PREFIX }}
       IPA_ZIP_PASSWORD: ${{ secrets.IPA_ZIP_PASSWORD }}
       GAME_ARIA2_LIST: ${{ secrets.GAME_ARIA2_LIST }}
+      FEED_SSH_KEY: ${{ secrets.FEED_SSH_KEY }}
+      FEED_SSH_HOST: ${{ secrets.FEED_SSH_HOST }}
       PACKAGE: ${{ inputs.package }}
       ROMFS: ${{ inputs.romfs }}
       GPU: ${{ inputs.gpu }}
@@ -116,6 +118,18 @@ jobs:
             # The owner exports the list from their own drive; aria2 keeps the
             # cookies and referer each entry needs and uses 16 connections.
             printf '%s\n' "$GAME_ARIA2_LIST" > "$RUNNER_TEMP/game.aria2.txt"
+            if grep -q '127.0.0.1:8767' "$RUNNER_TEMP/game.aria2.txt"; then
+              # Feed over the owner's SSH port-forwarding: nothing in the middle
+              # to time out, and aria2 -c resumes across a dropped connection.
+              : "${FEED_SSH_HOST:?}"; : "${FEED_SSH_KEY:?}"
+              printf '%s\n' "$FEED_SSH_KEY" > "$RUNNER_TEMP/feed_key"; chmod 600 "$RUNNER_TEMP/feed_key"
+              ssh -i "$RUNNER_TEMP/feed_key" -N -f -o StrictHostKeyChecking=accept-new \
+                -o UserKnownHostsFile="$RUNNER_TEMP/feed_known" -o ExitOnForwardFailure=yes \
+                -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+                -L 8767:127.0.0.1:8767 "$FEED_SSH_HOST"
+              curl -s -o /dev/null -w 'feed probe over ssh: %{http_code}\n' -r 0-3 --max-time 25 \
+                "$(grep -m1 '^http' "$RUNNER_TEMP/game.aria2.txt")"
+            fi
             command -v aria2c >/dev/null || brew install aria2
             ( cd "$dir" && aria2c -x16 -s16 -j2 -c --file-allocation=none \
                 --summary-interval=60 -i "$RUNNER_TEMP/game.aria2.txt" )
