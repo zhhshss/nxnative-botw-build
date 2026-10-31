@@ -219,26 +219,10 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      [view setFull:NO];
      [view layoutIfNeeded];
      CHECK([view dm_testDpadArtworkHidden], "2D layout keeps the 3D D-pad artwork hidden when BOTW relocation is unavailable");
-@@ -741,7 +749,12 @@
-     g_botw_touch_actions_available=NO; g_botw_cancel_complete=0; g_botw_cancel_requested=0;
- 
-     g_look_enabled = YES; reset_look(); g_input_sets = 0; g_input_history[0] = g_input_history[1] = 0;
--    CGPoint camera = CGPointMake(view.bounds.size.width * .82, view.bounds.size.height * .38);
-+    // The BOTW pad is laid out inside the aspect picture rect, so probe there:
-+    // a raw view-fraction point can fall inside a shoulder drop once the real
-+    // safe-area insets shift the pad (the R key sits near 82%/38% of the picture).
-+    float cameraPicture[4]; dm_aspect_touch_rect((float)view.bounds.size.width, (float)view.bounds.size.height, cameraPicture);
-+    CGPoint camera = CGPointMake(cameraPicture[0] + cameraPicture[2] * .82,
-+                                 cameraPicture[1] + cameraPicture[3] * .38);
-     CHECK([view dm_testBtnAt:camera] < 0, "BOTW camera area has no visible or active R3 button hit region");
-     FakeTouch *cameraTap = touch(camera.x,camera.y); beganAt(view,cameraTap,1.0); endedAt(view,cameraTap,camera.x,camera.y,1.08);
-     BOOL r3Pressed = NO, r3Released = NO;
-@@ -767,6 +780,19 @@
-     BOOL cancelR3 = NO; for (int i=0; i<g_input_sets; i++) cancelR3 |= (g_input_history[i] & DM_BTN_RS) != 0;
-     CHECK(g_look_events[g_look_count-1].phase == DM_LOOK_CANCEL && !cancelR3,
+@@ -769,6 +777,19 @@
            "cancelled gesture clears pending R3 tap and does not leave look active");
-+
-+    reset_look(); g_input_sets = 0;
+ 
+     reset_look(); g_input_sets = 0;
 +    FakeTouch *beforeOverlap = touch(camera.x,camera.y);
 +    beganAt(view,beforeOverlap,3.4); endedAt(view,beforeOverlap,camera.x,camera.y,3.45);
 +    FakeTouch *overlapOld = touch(camera.x,camera.y), *overlapNew = touch(camera.x+2,camera.y+2);
@@ -250,20 +234,28 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
 +    BOOL overlapR3 = NO; for (int i=0; i<g_input_sets; i++) overlapR3 |= (g_input_history[i] & DM_BTN_RS) != 0;
 +    CHECK(!overlapR3 && !g_look_held,
 +          "camera ownership transfer clears a pending R3 sequence and never counts as a tap");
- 
-     reset_look(); g_input_sets = 0;
++
++    reset_look(); g_input_sets = 0;
      FakeTouch *pendingTap3 = touch(camera.x,camera.y); beganAt(view,pendingTap3,4.0); endedAt(view,pendingTap3,camera.x,camera.y,4.08);
-@@ -1013,7 +1039,8 @@
-           "release restores the idle graph without an extra haptic");
+     FakeTouch *mapAgain = touch(mapPoint.x,mapPoint.y); began(view,mapAgain); ended(view,mapAgain,mapPoint.x,mapPoint.y);
+     FakeTouch *afterMap = touch(camera.x,camera.y); beganAt(view,afterMap,4.2); endedAt(view,afterMap,camera.x,camera.y,4.28);
+@@ -1236,9 +1257,14 @@
+     secondary = touch(CGRectGetMidX(resizedBounds), CGRectGetMidY(resizedBounds)); began(view,secondary);
+     CHECK(g_menu_pointer_count == 2, "a replacement pointer waits until the resized gesture owner lifts");
+     ended(view,primary,CGRectGetMidX(oldBounds),CGRectGetMidY(oldBounds));
+-    began(view,secondary);
++    // Ownership passes to a new finger once the cancelled owner has lifted. UIKit
++    // never re-delivers touchesBegan for a finger that is still down, so begin a
++    // fresh touch here instead of replaying the waiting one.
++    FakeTouch *replacement = touch(CGRectGetMidX(resizedBounds), CGRectGetMidY(resizedBounds));
++    began(view,replacement);
+     CHECK(g_menu_pointer_count == 3 && g_menu_pointer_events[2].phase == DM_BOTW_MENU_BEGIN,
+           "menu pointer ownership can begin again after the cancelled touch lifts");
++    ended(view,replacement,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
+     ended(view,secondary,CGRectGetMidX(resizedBounds),CGRectGetMidY(resizedBounds));
+     view.bounds = oldBounds; [view layoutIfNeeded];
  
-     g_look_enabled=YES; reset_look(); feedback.count=0;
--    CGPoint camera=CGPointMake(view.bounds.size.width*.82,view.bounds.size.height*.38);
-+    float cameraPicture[4]; dm_aspect_touch_rect((float)view.bounds.size.width,(float)view.bounds.size.height,cameraPicture);
-+    CGPoint camera=CGPointMake(cameraPicture[0]+cameraPicture[2]*.82,cameraPicture[1]+cameraPicture[3]*.38);
-     FakeTouch *drag=touch(camera.x,camera.y); beganAt(view,drag,5.0);
-     moved(view,drag,camera.x+40,camera.y); endedAt(view,drag,camera.x+40,camera.y,5.1);
-     CHECK(feedback.count==0,"BOTW camera dragging produces no touch haptic");
-@@ -1376,20 +1403,93 @@
+@@ -1376,20 +1402,93 @@
      reset_look();
      int prior_begins = g_begin_count;
      FakeTouch *first = touch(600, 150), *second = touch(700, 180);
@@ -366,7 +358,18 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
  }
  
  static void test_cancel_and_modes(DmGamepad *view) {
-@@ -1670,6 +1770,7 @@
+@@ -1659,6 +1758,10 @@
+ }
+ 
+ static void run_tests(DmGamepad *view) {
++    // Every geometry check below assumes the plain fixture. If the host ever lets
++    // real insets through again, say so instead of failing further down.
++    CHECK(UIEdgeInsetsEqualToEdgeInsets(view.safeAreaInsets, UIEdgeInsetsZero),
++          "harness fixture runs without device safe-area insets");
+     test_dpad_art_visibility(view);
+     test_botw_button_artwork(view);
+     test_botw_virtual_buttons(view);
+@@ -1670,6 +1773,7 @@
      test_botw_inventory_pointer(view);
      test_motion_orientation();
      test_look_drag(view);
@@ -374,10 +377,21 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      test_priority_and_multitouch(view);
      test_cancel_and_modes(view);
      reset_look(); g_look_enabled = YES;
-@@ -1702,22 +1803,53 @@
+@@ -1702,22 +1806,66 @@
      });
  }
  
++// The checks below are written for a plain 844x390 fixture that has no device
++// safe-area insets. Hosting the fixture in a real window scene - which the
++// orientation checks need - otherwise lets the pad inherit the device insets;
++// that shifts every right-hand BOTW control left and moves the R shoulder drop
++// onto the camera probe and the virtual B face key onto the AppCamera footer.
++@interface HarnessFixtureHost : UIView
++@end
++@implementation HarnessFixtureHost
++- (UIEdgeInsets)safeAreaInsets { return UIEdgeInsetsZero; }
++@end
++
 +// The orientation checks require a real UIWindowScene, including on SDK 27.
 +// Start only after the scene's view has appeared, not from application launch.
 +@interface HarnessRootController : UIViewController
@@ -388,11 +402,13 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
 +- (void)viewDidLoad {
 +    [super viewDidLoad];
 +    puts("Harness: root view loaded");
++    HarnessFixtureHost *host = [[HarnessFixtureHost alloc] initWithFrame:CGRectMake(0, 0, 844, 390)];
++    [self.view addSubview:host];
 +    // The artwork fixture covers enabled badges; the custom-layout test checks default-off.
 +    setenv("DM_BOTW_PAD_BADGES","1",1);
 +    UIView *raw = dm_gamepad_view(CGRectMake(0, 0, 844, 390));
 +    unsetenv("DM_BOTW_PAD_BADGES");
-+    [self.view addSubview:raw]; [raw setFrame:CGRectMake(0, 0, 844, 390)]; [raw layoutIfNeeded];
++    [host addSubview:raw]; [raw setFrame:CGRectMake(0, 0, 844, 390)]; [raw layoutIfNeeded];
 +    self.pad = (DmGamepad *)raw;
 +}
 +- (void)viewDidAppear:(BOOL)animated {
@@ -438,7 +454,7 @@ diff --git a/dm/ios/tests/ios_look_harness.m b/dm/ios/tests/ios_look_harness.m
      return YES;
  }
  @end
-@@ -1730,6 +1862,7 @@
+@@ -1730,6 +1878,7 @@
          if (!freopen(log.fileSystemRepresentation, "w", stdout) || dup2(STDOUT_FILENO, STDERR_FILENO) < 0) abort();
          setvbuf(stdout, NULL, _IOLBF, 0);
          setvbuf(stderr, NULL, _IOLBF, 0);
