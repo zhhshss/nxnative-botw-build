@@ -104,6 +104,10 @@ jobs:
           sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
           rm -rf ~/Library/Developer/CoreSimulator ~/Library/Caches/* ~/Library/Developer/Xcode/DerivedData || true
           rm -rf ~/Library/Android ~/Library/Developer/Xamarin ~/.gradle/caches || true
+          # Platforms this build never touches (Watch/tvOS); the iOS ones stay.
+          for pf in WatchOS AppleTVOS WatchSimulator AppleTVSimulator DriverKit; do
+            sudo rm -rf "/Applications/Xcode_27.1.app/Contents/Developer/Platforms/$pf.platform" || true
+          done
           df -h /System/Volumes/Data
       - name: Fetch the owner's game containers
         run: |
@@ -202,13 +206,14 @@ jobs:
           # containers are still there - not enough room. Release the containers
           # the moment the app bundle exists; packing reads only extract/.
           (
-            log="$RUNNER_TEMP/nsp/01007EF00011E000_build/logs/build_ipa.log"
-            for _ in $(seq 1 360); do
-              sleep 30
-              if [ -f "$log" ] && grep -q 'DmIOS.app' "$log"; then
+            app="$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Products/Release-iphoneos/DmIOS.app"
+            for _ in $(seq 1 540); do
+              sleep 20
+              if [ -d "$app" ]; then
                 rm -f "$RUNNER_TEMP"/nsp/*.nsp "$RUNNER_TEMP"/nsp/*.nsz
-                free=$(df -g "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
-                echo "containers released for packing, ${free} GB free"
+                rm -rf "$RUNNER_TEMP/nsp/01007EF00011E000_build/ipa/build/ios/pkg/dd/Build/Intermediates.noindex"
+                df -g "$RUNNER_TEMP" | tail -1
+                echo "released the containers for packing"
                 break
               fi
             done
