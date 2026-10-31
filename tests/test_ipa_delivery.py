@@ -24,6 +24,7 @@ class OwnerFileServerTests(unittest.TestCase):
     def test_ranges_head_and_wrong_token_over_http(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); (root / "app.ipa").write_bytes(b"0123456789")
+            (root / "app.ipa.partial").write_bytes(b"not yet verified")
             server = serve_owner_files.create_server(root, "127.0.0.1", 0, "test-token")
             thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
             url = f"http://127.0.0.1:{server.server_port}/test-token/app.ipa"
@@ -41,6 +42,9 @@ class OwnerFileServerTests(unittest.TestCase):
                 self.assertEqual(error.exception.code, 416)
                 with self.assertRaises(HTTPError) as error:
                     urlopen(url.replace("test-token", "wrong-token"), timeout=5)
+                self.assertEqual(error.exception.code, 404)
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(url + ".partial", timeout=5)
                 self.assertEqual(error.exception.code, 404)
             finally:
                 server.shutdown(); server.server_close(); thread.join()
@@ -165,6 +169,41 @@ class IPAPickupTests(unittest.TestCase):
                 self.extract(output, password, digest)
             self.assertFalse(output.exists())
             self.assertFalse(output.with_name(output.name + ".partial").exists())
+
+    def encrypted_artifact(self):
+        encrypted = self.root / (self.name + ".enc")
+        shader_cache.encrypt_archive(self.ipa, encrypted, self.expected,
+                                     self.password.encode(), kind="ipa")
+        stream = ForwardOnly()
+        with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED) as zip:
+            zip.writestr("SHA256.txt", b"manifest comes first\n")
+            with zip.open(encrypted.name, "w", force_zip64=True) as entry:
+                entry.write(encrypted.read_bytes())
+        artifact = self.root / "aes-artifact.zip"; artifact.write_bytes(stream.getvalue())
+        return artifact
+
+    def test_authenticated_ipa_stream_from_stored_zip64(self):
+        artifact = self.encrypted_artifact()
+        output = self.root / "aes-download.ipa"
+        producer = subprocess.Popen(["cat", str(artifact)], stdout=subprocess.PIPE)
+        try:
+            fetch_ipa.extract_aes_stream(producer.stdout, output, self.password, self.name, self.expected)
+            self.assertEqual(output.read_bytes(), self.ipa.read_bytes())
+        finally:
+            producer.stdout.close(); producer.wait(timeout=5)
+
+    def test_authenticated_ipa_rejects_wrong_password_and_keeps_existing_output(self):
+        encrypted = self.root / "encrypted.bin"
+        shader_cache.encrypt_archive(self.ipa, encrypted, self.expected,
+                                     self.password.encode(), kind="ipa")
+        output = self.root / "rejected.ipa"
+        with encrypted.open("rb") as source, self.assertRaises(InvalidTag):
+            shader_cache.decrypt_ipa_stream(source, output, self.expected, b"wrong")
+        self.assertFalse(output.exists())
+        output.write_bytes(b"an existing file")
+        with encrypted.open("rb") as source, self.assertRaises(FileExistsError):
+            shader_cache.decrypt_ipa_stream(source, output, self.expected, self.password.encode())
+        self.assertEqual(output.read_bytes(), b"an existing file")
 
     def test_hash_is_bound_to_the_actual_ipa_in_the_build_log(self):
         log = f"job\tPublish\t2026-10-31T12:00:00Z {self.expected}  /runner/out/{self.name}\n"

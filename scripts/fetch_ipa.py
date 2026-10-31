@@ -85,6 +85,36 @@ def extract_stream(source, output: Path, password: str, name: str, expected: str
             part.unlink(missing_ok=True)
 
 
+def extract_aes_stream(source, output: Path, password: str, name: str, expected: str) -> None:
+    try:
+        from .shader_cache import decrypt_ipa_stream
+    except ImportError:
+        from shader_cache import decrypt_ipa_stream
+    part = output.with_name(output.name + ".partial")
+    if part.exists():
+        raise ValueError(f"unfinished pickup already exists: {part}")
+    with tempfile.TemporaryFile() as errors:
+        outer = subprocess.Popen(["bsdtar", "-xOf", "-", name + ".enc"],
+                                 stdin=source, stdout=subprocess.PIPE, stderr=errors)
+        try:
+            decrypt_ipa_stream(outer.stdout, part, expected, password.encode())
+            outer.stdout.close()
+            if outer.wait():
+                raise ValueError("encrypted artifact extraction failed")
+            with zipfile.ZipFile(part) as ipa:
+                if not {"Payload/DmIOS.app/Info.plist", "Payload/DmIOS.app/DmIOS"} <= set(ipa.namelist()):
+                    raise ValueError("archive is missing the app executable or Info.plist")
+            os.replace(part, output)
+        except Exception as exc:
+            raise ValueError("encrypted IPA verification failed") from exc
+        finally:
+            outer.stdout.close()
+            if outer.poll() is None:
+                outer.kill()
+            outer.wait()
+            part.unlink(missing_ok=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=int)
@@ -125,7 +155,8 @@ def main() -> None:
             download = subprocess.Popen(["gh", "api", f"repos/{args.repo}/actions/artifacts/{artifact['id']}/zip"],
                                         stdout=subprocess.PIPE, stderr=errors)
             try:
-                extract_stream(download.stdout, output, password, NAME, expected)
+                pickup = extract_aes_stream if "artifact is AES-256-GCM encrypted" in log else extract_stream
+                pickup(download.stdout, output, password, NAME, expected)
                 if download.wait():
                     output.unlink(missing_ok=True)
                     raise ValueError("artifact download failed")

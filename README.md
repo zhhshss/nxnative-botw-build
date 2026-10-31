@@ -24,13 +24,13 @@ The complete IPA workflow builds an unsigned IPA for reinstall using the owner's
 
 ## Complete IPA build and pickup
 
-Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its IPA job restores the iOS SwiftUI launcher and shader tools, writes `out/BOTW-iPad-Touch.ipa`, and publishes to the owner's R2 storage or as a password-protected Actions artifact.
+Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its IPA job restores the iOS SwiftUI launcher and shader tools, writes `out/BOTW-iPad-Touch.ipa`, and publishes to the owner's R2 storage or as an AES-256-GCM encrypted Actions artifact. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
 
 The reviewed `--ipa-ci` stage releases downloaded container copies synchronously after all game and DLC extraction succeeds. Reclamation requires the explicit CI flag and the runner's `RUNNER_TEMP/nsp` folder. Compile products remain available throughout Xcode's build.
 
 Completed shaders and GPU pipeline archives are cached as an AES-256-GCM encrypted archive. The cache namespace covers game-file contents, shader sources and profiles, translator binaries, compiler/SDK versions, GPU and password rotation. Native build fingerprints still validate restored outputs. Translator fingerprints use binary contents so a fresh checkout timestamp does not force recompilation. A completed shader build can be cached even if a later Xcode or packing step fails. The previous cold build spent about 77 minutes on iOS shaders and 17 minutes on pipelines; a later build can reuse those results. The first cache population still runs the complete shader build.
 
-Pickup streams the outer Actions ZIP and encrypted inner ZIP directly into one IPA, verifies its SHA256 against the successful build log, and checks its app entries before publishing the file. It needs `gh`, `bsdtar` (`libarchive-tools` on Ubuntu), and enough space for one IPA plus 512 MiB:
+Pickup streams the Actions ZIP and authenticated ciphertext directly into one IPA, verifies its SHA256 against the successful build log, and checks its app entries before publishing the file. The older encrypted ZIP format remains readable. It needs `gh`, `bsdtar` (`libarchive-tools` on Ubuntu), Python `cryptography`, and enough space for one IPA plus 512 MiB:
 
 ```sh
 python3 scripts/fetch_ipa.py <successful-run-id> \

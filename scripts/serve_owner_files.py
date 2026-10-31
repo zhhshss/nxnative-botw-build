@@ -52,7 +52,7 @@ class OwnerFileHandler(BaseHTTPRequestHandler):
             self.empty(404); return
         name = os.path.basename(path[len(prefix):])
         file = self.server.root / name
-        if not name or not file.is_file():
+        if not name or name.endswith(".partial") or not file.is_file():
             self.empty(404); return
         try:
             stream = file.open("rb")

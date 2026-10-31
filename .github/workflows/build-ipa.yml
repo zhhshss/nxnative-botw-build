@@ -263,9 +263,10 @@ jobs:
           else
             : "${IPA_ZIP_PASSWORD:?set R2_BUCKET for a direct upload, or IPA_ZIP_PASSWORD for a protected artifact}"
             mkdir -p "$RUNNER_TEMP/publish"
-            ( cd "$RUNNER_TEMP/publish" && zip -0 -q -j -e -P "$IPA_ZIP_PASSWORD" "ipa.zip" "$ipa" && mv ipa.zip "$(basename "$ipa").zip" )
+            python3 scripts/shader_cache.py encrypt-ipa --input "$ipa" \
+              --output "$RUNNER_TEMP/publish/$(basename "$ipa").enc" --sha256 "$sha"
             printf '%s  %s\n' "$sha" "$(basename "$ipa")" > "$RUNNER_TEMP/publish/SHA256.txt"
-            echo "artifact is encrypted; delete it after pickup"
+            echo "artifact is AES-256-GCM encrypted; delete it after pickup"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

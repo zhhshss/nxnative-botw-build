@@ -73,9 +73,10 @@ def derive_key(password: bytes, salt: bytes) -> bytes:
                      salt=salt, iterations=200000).derive(password)
 
 
-def encrypt_archive(archive: Path, output: Path, key: str, password: bytes) -> None:
+def encrypt_archive(archive: Path, output: Path, key: str, password: bytes,
+                    kind: str = "shader-cache") -> None:
     salt, nonce = os.urandom(16), os.urandom(12)
-    metadata = json.dumps({"key": key, "salt": salt.hex(), "nonce": nonce.hex()},
+    metadata = json.dumps({"key": key, "salt": salt.hex(), "nonce": nonce.hex(), "kind": kind},
                           sort_keys=True).encode()
     header = MAGIC + struct.pack(">I", len(metadata)) + metadata
     encryptor = Cipher(algorithms.AES(derive_key(password, salt)), modes.GCM(nonce)).encryptor()
@@ -105,6 +106,8 @@ def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes) -> No
             metadata = json.loads(encoded)
             if metadata["key"] != key:
                 raise ValueError("shader cache key mismatch")
+            if metadata.get("kind", "shader-cache") != "shader-cache":
+                raise ValueError("unexpected encrypted archive type")
             header = MAGIC + struct.pack(">I", size) + encoded
             start = src.tell()
             src.seek(-16, os.SEEK_END)
@@ -126,6 +129,54 @@ def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes) -> No
                 dst.write(decryptor.finalize())
     except BaseException:
         archive.unlink(missing_ok=True)
+        raise
+
+
+def decrypt_ipa_stream(source, output: Path, expected: str, password: bytes) -> None:
+    """Authenticate a forward-only encrypted IPA while writing one partial file."""
+    created = False
+    try:
+        if source.read(len(MAGIC)) != MAGIC:
+            raise ValueError("unsupported encrypted IPA format")
+        encoded_size = source.read(4)
+        if len(encoded_size) != 4:
+            raise ValueError("truncated encrypted IPA header")
+        size = struct.unpack(">I", encoded_size)[0]
+        if not 0 < size <= 4096:
+            raise ValueError("invalid encrypted IPA header")
+        encoded = source.read(size)
+        metadata = json.loads(encoded)
+        if metadata.get("kind") != "ipa" or metadata.get("key") != expected:
+            raise ValueError("encrypted IPA identity does not match the build")
+        header = MAGIC + encoded_size + encoded
+        decryptor = Cipher(algorithms.AES(derive_key(password, bytes.fromhex(metadata["salt"]))),
+                           modes.GCM(bytes.fromhex(metadata["nonce"]))).decryptor()
+        decryptor.authenticate_additional_data(header)
+        digest, tail, received, reported = hashlib.sha256(), b"", 0, 0
+        fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+        with os.fdopen(fd, "wb") as dest:
+            for chunk in iter(lambda: source.read(CHUNK), b""):
+                block = tail + chunk
+                if len(block) <= 16:
+                    tail = block
+                    continue
+                plain = decryptor.update(block[:-16])
+                tail = block[-16:]
+                dest.write(plain); digest.update(plain)
+                received += len(plain)
+                if received - reported >= 2**30:
+                    print(f"IPA pickup: {received / 2**30:.1f} GiB", flush=True)
+                    reported = received
+            if len(tail) != 16:
+                raise ValueError("truncated encrypted IPA")
+            plain = decryptor.finalize_with_tag(tail)
+            dest.write(plain); digest.update(plain)
+        if digest.hexdigest() != expected:
+            raise ValueError("IPA SHA256 differs from the successful build")
+    except BaseException:
+        if created:
+            output.unlink(missing_ok=True)
         raise
 
 
@@ -196,6 +247,10 @@ def main() -> None:
         p.add_argument("--work", type=Path, required=True)
         p.add_argument("--cache", type=Path, required=True)
         p.add_argument("--key-file", type=Path, required=True)
+    p = sub.add_parser("encrypt-ipa")
+    p.add_argument("--input", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--sha256", required=True)
     args = parser.parse_args()
     if args.command == "key":
         versions = [subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT).strip()
@@ -211,8 +266,11 @@ def main() -> None:
             with open(path, "a") as f:
                 f.write(f"key={key}\n")
         return
-    key = args.key_file.read_text().strip()
     password = os.environ["IPA_ZIP_PASSWORD"].encode()
+    if args.command == "encrypt-ipa":
+        encrypt_archive(args.input, args.output, args.sha256, password, kind="ipa")
+        return
+    key = args.key_file.read_text().strip()
     if args.command == "restore":
         restore(args.cache, args.work, key, password)
     else:
