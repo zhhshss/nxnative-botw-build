@@ -7,6 +7,10 @@ on:
         description: 'Inspect installed Apple toolchains without building or downloading game files'
         type: boolean
         default: false
+      checks_only:
+        description: 'Run current upstream validation without downloading or building the game'
+        type: boolean
+        default: false
       romfs:
         description: 'Data delivery: nxrom for independent reusable data and an app-only IPA'
         type: choice
@@ -30,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-host-${{ github.ref }}
+  group: windows-host-${{ github.ref }}-${{ inputs.checks_only || false }}
   cancel-in-progress: true
 
 jobs:
@@ -219,7 +223,7 @@ jobs:
   # The finished IPA needs the owner's game data and a Mac; it runs only when
   # the repository variable BUILD_IPA is true, so ordinary pushes never start it.
   ipa:
-    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' && inputs.probe_only != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' && inputs.probe_only != true && inputs.checks_only != true }}
     uses: ./.github/workflows/build-ipa.yml
     with:
       romfs: ${{ inputs.romfs || 'separate' }}
