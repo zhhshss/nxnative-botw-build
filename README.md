@@ -30,7 +30,11 @@ The complete IPA workflow builds an unsigned IPA for reinstall using the owner's
 
 ## Complete IPA build and pickup
 
-Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its IPA job restores the iOS SwiftUI launcher and shader tools, writes `out/BOTW-iPad-Touch.ipa`, and publishes to the owner's R2 storage or as an AES-256-GCM encrypted Actions artifact. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
+Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its default `nxrom` mode uses the original in-app importer: it writes an app-only `out/BOTW-iPad-Touch.ipa` and a separate `out/BOTW-iPad-Touch.nxrom` containing the game/update/DLC. The two outputs are published as independent authenticated artifacts, so fetching an app update does not fetch the large data package. `bundle` still builds a complete IPA, and `separate` is the manual RomFS-transfer mode. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
+
+Install the app IPA, open it and select its matching `.nxrom` once. The importer verifies and stores the data in the app's Documents directory. Later app builds with the same data SHA256 use the existing installation; settings or app-code changes do not require another data download. Install an update over the existing app with the same bundle identifier to preserve Documents. Game or DLC content changes produce a new data identity and require the matching package.
+
+`publish_game_data=false` omits the separate data upload when only an app update is needed. The app still carries its required data descriptor. For an owner who already has a complete IPA, `scripts/split_game_data.py` can generate the original-format `.nxrom` and an import-ready app IPA locally; the executable, frameworks and shaders are preserved byte for byte.
 
 The reviewed `--ipa-ci` stage releases downloaded container copies synchronously after all game and DLC extraction succeeds. Reclamation requires the explicit CI flag and the runner's `RUNNER_TEMP/nsp` folder. Compile products remain available throughout Xcode's build.
 
@@ -44,6 +48,19 @@ Pickup reads the Actions ZIP64 central directory with HTTP ranges, then streams 
 python3 scripts/fetch_ipa.py <successful-run-id> \
   --output-dir /path/to/downloads --password-file /path/to/ipa-password.txt
 ```
+
+For `nxrom` builds this defaults to `BOTW-iPad-Touch-App.ipa`. Add `--with-game-data` for the first pickup, optionally `--data-dir /path/to/large-disk`; the matching `BOTW-<version>-DLC.nxrom` is checked by SHA256 and reused if already present, including when that run publishes only an app. Subsequent pickups without this flag request only the app artifact. Repeated pickups of an identical existing app/data pair do not request another artifact download. A newer split app replaces the previous file only after authentication, SHA256 and IPA structure verification succeed; failed transfers preserve the previous app.
+
+```sh
+python3 scripts/split_game_data.py /path/to/complete.ipa \
+  --source /path/to/prepared/source \
+  --work /path/to/large-disk/split-work \
+  --aoc-work /path/to/other-disk/split-aoc \
+  --data-output /path/to/large-disk/BOTW-1.9.0-DLC.nxrom \
+  --app-output /path/to/downloads/BOTW-iPad-Touch-App.ipa
+```
+
+To repack an app using an existing data descriptor, use `--metadata /path/to/BOTW-1.9.0-DLC.json` with `--app-output`; this path never opens the IPA's game-data entries. Temporary RomFS/DLC extraction can be removed after both outputs are verified.
 
 The optional `--token-file` and `--public-base` arguments print a link for an existing owner-controlled file server. Game containers, RomFS and keys are excluded from the shader cache.
 

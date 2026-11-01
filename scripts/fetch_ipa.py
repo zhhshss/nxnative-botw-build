@@ -247,9 +247,10 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     separate = "external game data:" in log
     output = args.output_dir / (APP_NAME if separate else NAME)
-    if output.exists() and digest_file(output) != expected:
+    current = output.exists() and digest_file(output) == expected
+    if output.exists() and not current and not separate:
         raise ValueError("an IPA from another build already exists at the output path")
-    if not output.exists():
+    if not current:
         if shutil.disk_usage(args.output_dir).free < artifact["size_in_bytes"] + 512 * 2**20:
             raise ValueError("not enough room for the IPA plus 512 MiB of working space")
         password = args.password_file.read_text().strip()
@@ -267,12 +268,7 @@ def main() -> None:
             raise ValueError("this build did not produce an independent .nxrom")
         with zipfile.ZipFile(output) as app:
             descriptor = json.loads(app.read("Payload/DmIOS.app/dm/game-data.json"))
-        data_expected = expected_digest(log, DATA_NAME)
-        if data_expected != descriptor["sha256"]:
-            raise ValueError("published game data does not match the app descriptor")
-        data_artifacts = [a for a in artifacts["artifacts"] if a["name"] == "botw-game-data-encrypted" and not a["expired"]]
-        if len(data_artifacts) != 1:
-            raise ValueError("expected one unexpired independent game-data artifact")
+        data_expected = descriptor["sha256"]
         if not re.fullmatch(r"[A-Za-z0-9_.-]+", descriptor["version"]):
             raise ValueError("unsupported data version filename")
         directory = args.data_dir or args.output_dir
@@ -284,6 +280,11 @@ def main() -> None:
             validate_game_data(data_output, descriptor)
             print("Existing .nxrom is verified; no repeated data download.")
         else:
+            if expected_digest(log, DATA_NAME) != data_expected:
+                raise ValueError("published game data does not match the app descriptor")
+            data_artifacts = [a for a in artifacts["artifacts"] if a["name"] == "botw-game-data-encrypted" and not a["expired"]]
+            if len(data_artifacts) != 1:
+                raise ValueError("expected one unexpired independent game-data artifact")
             if shutil.disk_usage(directory).free < descriptor["size"] + 512 * 2**20:
                 raise ValueError("not enough room for the independent game-data package")
             password = args.password_file.read_text().strip()
