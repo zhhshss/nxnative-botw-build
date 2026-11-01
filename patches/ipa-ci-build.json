@@ -1,0 +1,15 @@
+{
+  "source_commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
+  "patch_sha256": "1ef52849d38d67534961273cbcadad41f1d95de392c3c99deb7bf60384afbda7",
+  "file": {
+    "path": "scripts/build_ipa_from_nsp.py",
+    "before_sha256": "c1e6f6558920620f44a1ae897e820cf2968eb7d59fbb82c910a9549150623f65",
+    "after_sha256": "1d483cd740c8c5a112993f868e1655196aaff2511e1070ee55c845299d9fd5da"
+  },
+  "changes": [
+    "Release only downloaded RUNNER_TEMP/nsp containers after every game and DLC extraction succeeds",
+    "Use translator binary contents instead of checkout timestamps in shader reuse fingerprints",
+    "Exclude random Metal cryptex install paths from stage compiler fingerprints",
+    "Validate and migrate compatible legacy shader fingerprints against every current input"
+  ]
+}

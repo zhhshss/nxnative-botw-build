@@ -1,0 +1,107 @@
+{
+  "source_commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
+  "merged_upstream_commit": "fe6d3dfadb899e2a3525ea7a1d85a4255ca4e8a3",
+  "upstream_changes": [
+    {
+      "repository": "devinhurry/touch-the-wild",
+      "commit": "1983d2d3cc441e5f74fe59c69282e0b7281f389e",
+      "subject": "Reduce redundant NVN render passes and attachment stores"
+    },
+    {
+      "repository": "devinhurry/touch-the-wild",
+      "commit": "2004eb4334261db889b49cb3d5fca588e8208091",
+      "subject": "Preserve compression eligibility for NVN feedback snapshots"
+    }
+  ],
+  "shader_chain": "715bb867230c",
+  "files": [
+    {
+      "path": "dm/games/01007EF00011E000/README.md",
+      "before_sha256": "9d5da1ade9687d5d1bfdf3a8e4ee6318cb4aeeafe563f5b5ef9099fb6078d4eb",
+      "after_sha256": "8a6f38ce0a02beba44bc514fd7542209450ae402e0f4860507e94d17578cab37"
+    },
+    {
+      "path": "dm/games/settings.tsv",
+      "before_sha256": "730e5a8dc02e806c4c9819bff99c138704e6514c1e3d65dbf4733628f76b8b48",
+      "after_sha256": "29e646feba8bb87721fd4287dbadcbebc47e85673a228e2deaad0c6f98075608"
+    },
+    {
+      "path": "dm/gfx/nvn/hle_nvn.c",
+      "before_sha256": "32e7818423be1a1e98b3217aeef3c7d4cb31354373754ba278a83cc66e9725d1",
+      "after_sha256": "55643e45d118b790f08c1d369fe7db173d4ae2051e2be6db58af533930f1a117"
+    },
+    {
+      "path": "dm/gfx/nvn/nvn_geometry.inc",
+      "before_sha256": "575fb4488597dae06e545cbfcf06afed1bcc22c77462ef96d422307e56d5c6a6",
+      "after_sha256": "5d4d64420116bb4df7d6479f943653f71e91870e9f549a50403481d0923fb372"
+    },
+    {
+      "path": "dm/gfx/nvn/nvn_mtl.m",
+      "before_sha256": "11b424694422eb403c9b45ccca956f1d99fd9d261bd5222a4f97b48189a10285",
+      "after_sha256": "b17c610259ee090fbd564328397a01d240f0516fc2f39b665ae4f0595e6b69d8"
+    },
+    {
+      "path": "dm/gfx/tests/Makefile",
+      "before_sha256": "05e5be24acb12064d0ba7e7825bb82bd45c2d974478a699bd802d3ba2456608b",
+      "after_sha256": "2b82a6c477c64199a1601819bf4bc1b80b565891aada54455dc86413e116378e"
+    },
+    {
+      "path": "dm/gfx/tests/t_feedback.m",
+      "before_sha256": "590cd2bb5c97c3ad0ed9849281d4080a8a20836505ef64ad1f932d113ad05af7",
+      "after_sha256": "b3e5c6a894e3eba8b89926928dd139e11b69f21ae606e7443f1ab05aa8718bfb"
+    },
+    {
+      "path": "dm/gfx/tests/t_rt_range.m",
+      "before_sha256": "4b1fece5023c4066b1b90f37891f75e05952018c1f3c2bb4d0f0faf282c1a3d4",
+      "after_sha256": "4bca5686e39eff55b10de96d365a74f38763f9798db2b8843b66f64628367f1b"
+    },
+    {
+      "path": "dm/gfx/tests/t_unwritten_store.m",
+      "before_sha256": "08216039bb6bf21d60258bb54ac4b102de136b3b2448addc697e07dfb3d1312a",
+      "after_sha256": "ecdf1064b317da03b965f8a5d0b1d9fda56e1e39d5060cf1cb7bfcc2e9f384d9"
+    },
+    {
+      "path": "dm/ios/Sources/en.lproj/Localizable.strings",
+      "before_sha256": "5195b20b2f3970a5689371e740dfbe330da8ecd0e6300fe794d395c5867058af",
+      "after_sha256": "a4cdc3a58325f1112e8300e527acaf994a7270a4c12fb148185d307c17308dc3"
+    },
+    {
+      "path": "dm/ios/Sources/zh-Hans.lproj/Localizable.strings",
+      "before_sha256": "b6f262fc37c29488b34abeabb9b4fc3d6104ff7e6e0e4668acf030778c9c6e00",
+      "after_sha256": "59d9df684e7f1a9265848fa8b4d2aef496440d4a572f4a1cb1badb4a89cf27b2"
+    },
+    {
+      "path": "dm/tools/tests/test_launcher_settings.py",
+      "before_sha256": "8df3aef3c9d1458e0fe94127425bc9501b4bce7f326d3e9f75daf530fb308052",
+      "after_sha256": "47003a260acb7925228901989578e04dfc9093c30f5ac0bf7bde90118c05ff48"
+    },
+    {
+      "path": "docs/agents/symptoms.md",
+      "before_sha256": "9703ac95ee7c17f70b77bd52e426994938b56a363f1624969eaa1cdac4e31391",
+      "after_sha256": "2210fdb408af0530b15d697633d862898231ae12d9d49562b96b6ef0cdbacf2d"
+    },
+    {
+      "path": "docs/env_switches.tsv",
+      "before_sha256": "103431ad075fd09a1ec2bca685b1c838b45fa0d4b4350423e9eace1422dd1e07",
+      "after_sha256": "10919de8590fc4affc99176b952408027b7977773ffd55966feafe08a49d45df"
+    },
+    {
+      "path": "docs/reference/rendering.md",
+      "before_sha256": "833ddcc469b3d0814e4a88e292c3ac891b57b46973dfde1a9471ffd21295d090",
+      "after_sha256": "788494bc09254cd889bbc2bd13384c7fe6e6eb2730b01631047ba93146c178d2"
+    },
+    {
+      "path": "docs/settings.md",
+      "before_sha256": "3fcc727253c8db25518a6b519f42a005f3e89a37e955e29269503b3e7788f8cb",
+      "after_sha256": "eddfc522236ceacdd3df2d214c78b7c6a3b1092a9102c3848fdba8904b5dc800"
+    }
+  ],
+  "patch_sha256": "8a0de7496659c68f13b90e074e1d34c3e4edc9a8aa8b47e0357d112b4823486e",
+  "device_tested": false,
+  "adaptations": [
+    "Existing source has no Seated canvas remapping; all existing specialized output guards are retained.",
+    "Feedback diagnostics have a local declaration; shader-interface headers are unchanged.",
+    "Shared diagnostic counters use atomic accesses across encode and present threads.",
+    "Writable storage-buffer addresses in uniforms participate in the existing shader-write boundary classifier; readonly bindings remain readonly."
+  ]
+}

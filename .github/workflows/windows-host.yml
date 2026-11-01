@@ -2,6 +2,16 @@ name: Touch the Wild Windows host and controls
 
 on:
   workflow_dispatch:
+    inputs:
+      romfs:
+        description: 'Data delivery: nxrom for independent reusable data and an app-only IPA'
+        type: choice
+        options: [nxrom, bundle, separate]
+        default: nxrom
+      publish_game_data:
+        description: 'Publish the separate .nxrom artifact as well as the app'
+        type: boolean
+        default: true
   push:
     branches: [main]
     paths:
@@ -27,6 +37,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install IPA delivery test prerequisites
+        run: |
+          python3 -m pip install --quiet cryptography
+          sudo apt-get install -y --no-install-recommends libarchive-tools zip
       - name: Source-only input regression checks
         shell: bash
         run: |
@@ -36,7 +50,7 @@ jobs:
             "$RUNNER_TEMP/tests/$name"
           done
           python3 -m compileall -q scripts
-          python3 tests/test_incremental_update.py
+          python3 -m unittest discover -s tests -v
           gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined plugin/tests/zip_test.c -lz -o "$RUNNER_TEMP/tests/zip"
           "$RUNNER_TEMP/tests/zip"
 
@@ -125,9 +139,25 @@ jobs:
           path: fork
           persist-credentials: false
       - name: Prepare the same reviewed source tree as the Windows build
-        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite
+        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite --ipa-ci
+      - name: CI input reclamation and portable shader reuse regressions
+        env:
+          BOTW_CI_STAGE: ${{ runner.temp }}/stage
+        run: python3 -m unittest discover -s tests -p test_ipa_ci_stage.py -v
       - name: Host and real UIKit handler regressions without game files
         run: python3 scripts/check_touch_controls.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/touch-tests"
+      - name: Render backport compilation, concurrency and available GPU regressions
+        run: python3 scripts/check_render_pass.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/render-tests"
+      - name: Reviewed render backport source and shader-cache compatibility
+        env:
+          BOTW_CI_STAGE: ${{ runner.temp }}/stage
+        run: python3 -m unittest discover -s tests -p test_render_pass_backport.py -v
+      - name: Original game-data importer and split distribution regressions
+        env:
+          BOTW_CI_STAGE: ${{ runner.temp }}/stage
+        run: |
+          python3 "$RUNNER_TEMP/stage/dm/ios/tests/test_game_data.py"
+          python3 -m unittest discover -s tests -p test_split_game_data.py -v
       - name: Upload regression results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -141,5 +171,17 @@ jobs:
             ${{ runner.temp }}/touch-tests/uikit/*.txt
             ${{ runner.temp }}/touch-tests/uikit/*.ips
             ${{ runner.temp }}/touch-tests/uikit/*.crash
+            ${{ runner.temp }}/render-tests/*.log
+            ${{ runner.temp }}/render-tests/report.json
           if-no-files-found: warn
           retention-days: 14
+
+  # The finished IPA needs the owner's game data and a Mac; it runs only when
+  # the repository variable BUILD_IPA is true, so ordinary pushes never start it.
+  ipa:
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' }}
+    uses: ./.github/workflows/build-ipa.yml
+    with:
+      romfs: ${{ inputs.romfs || 'nxrom' }}
+      publish_game_data: ${{ inputs.publish_game_data }}
+    secrets: inherit
