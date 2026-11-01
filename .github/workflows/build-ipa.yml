@@ -115,13 +115,16 @@ jobs:
           df -h /System/Volumes/Data
           du -sh /Applications/Xcode*.app 2>/dev/null || true
           # Keep only the Xcode DEVELOPER_DIR points at; drop the rest of the image's ballast.
+          selected_app=$(python3 -c 'import os; from pathlib import Path; print(Path(os.environ["DEVELOPER_DIR"]).resolve().parents[1])')
           for x in /Applications/Xcode*.app; do
-            [ "$(basename "$x")" = "Xcode_27.2.app" ] && continue
+            resolved_app=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$x")
+            [ "$resolved_app" = "$selected_app" ] && continue
             sudo rm -rf "$x" || true
           done
           sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
           rm -rf ~/Library/Developer/CoreSimulator ~/Library/Caches/* ~/Library/Developer/Xcode/DerivedData || true
           rm -rf ~/Library/Android ~/Library/Developer/Xamarin ~/.gradle/caches || true
+          xcodebuild -version
           df -h /System/Volumes/Data
       - name: Fetch the owner's game containers
         run: |
