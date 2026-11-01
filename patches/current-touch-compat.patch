@@ -339,7 +339,20 @@ diff --git a/dm/ios/Sources/DmGamepad.m b/dm/ios/Sources/DmGamepad.m
          BOOL nativeMenuArea=botwSeated() ? [t locationInView:self].y<CGRectGetMinY([self botwControlArea]) : !_botwCameraPadVisible;
          if (_botwMenuMode && !_manualMenuPad && nativeMenuArea) {
              if ([self botwMenuDpadActive]) {
-@@ -1327,6 +1380,7 @@
+@@ -1253,7 +1306,12 @@
+         BOOL scopePrompt = [self botwScopePromptOwnsPoint:p];
+         // BOTW's face buttons own their individual hit areas, never the gaps.
+         if ([self botwTouchControlsActive]) {
++            uint64_t faceBits = [self faceAt:p];
+             for (int b = B_A; b <= B_Y; b++) {
++                // The candidate must actually publish this key. Otherwise a
++                // circular candidate outside the directional hit region would
++                // consume native camera/footer input without sending a button.
++                if (!(faceBits & (1ull << b))) continue;
+                 CGPoint center = [self facePos:b];
+                 CGFloat radius = [self faceRadiusForButton:b];
+                 CGFloat faceHit = dist(p, center) / (radius * 1.25);
+@@ -1327,6 +1385,7 @@
  }
  - (void)touchesMoved:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e {
      [self refreshBotwTouchMenuMode];
@@ -347,7 +360,7 @@ diff --git a/dm/ios/Sources/DmGamepad.m b/dm/ios/Sources/DmGamepad.m
      if (_menuPadChord.count) return;
      BOOL game = NO;
      for (UITouch *t in ts) {
-@@ -1379,6 +1433,7 @@
+@@ -1379,6 +1438,7 @@
  }
  - (void)endTouches:(NSSet<UITouch *> *)ts tapped:(BOOL)ended {
      [self refreshBotwTouchMenuMode];
@@ -355,7 +368,7 @@ diff --git a/dm/ios/Sources/DmGamepad.m b/dm/ios/Sources/DmGamepad.m
      if (_menuPadChord.count) { [_menuPadChord minusSet:ts]; return; }
      BOOL swap = NO, game = NO;
      for (UITouch *t in ts) {
-@@ -1566,6 +1621,7 @@
+@@ -1566,6 +1626,7 @@
  }
  - (void)layoutSubviews {
      [super layoutSubviews];

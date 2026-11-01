@@ -1,7 +1,7 @@
 {
   "source_commit": "c671dd0b27f4ee4691d26e86dd7ad9de58c9f577",
   "shader_chain": "ca8b9c5b4e34",
-  "patch_sha256": "6809835394176a4f304cc32e70366c6254d394fc4748d3e594030b5e7722e4eb",
+  "patch_sha256": "e3616430be14faaffc9e4235ee1201eceef25fea1f130c9da93e0eca39797e04",
   "files": [
     {
       "path": "dm/gfx/nvn/nvn_mtl.m",
@@ -31,7 +31,7 @@
     {
       "path": "dm/ios/Sources/DmGamepad.m",
       "before_sha256": "5829b0a14c01e6528fc0d93d86c17eec9b9312065fc3ad3f866511779b714e4e",
-      "after_sha256": "a910b366386c579b5d278a79dfb0a0dda1621a259dc4c1c55a2cfe0ff9919550"
+      "after_sha256": "bbfb0e8225d702ea138ba5584a91e9e23debe792ec099c8c09ece68ccc648da8"
     },
     {
       "path": "dm/ios/Sources/Launcher.swift",
