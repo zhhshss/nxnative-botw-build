@@ -1,14 +1,20 @@
 # nxnative BOTW build workspace
 
-Public source-only build orchestration for Touch the Wild and the NXKeyboard plugin. It combines the pinned `devinhurry/touch-the-wild` implementation with newer `seedds/nxnative` changes and the reviewed `xbunax/nxnative` Windows build support. GitHub Actions compiles ARM64 iOS host objects without Nintendo game files, keys, RomFS, shaders or saves.
+Public source-only build orchestration for Touch the Wild and the NXKeyboard plugin. It combines the pinned `devinhurry/touch-the-wild` implementation with newer `seedds/nxnative` changes and the reviewed `xbunax/nxnative` Windows build support. The Windows job compiles ARM64 iOS host objects without Nintendo game files, keys, RomFS, shaders or saves; the optional complete IPA job reads the owner's private inputs.
 
 The Touch the Wild integration adds native scene aspect correction, independent UI proportions, native menu and map touch controls, and relative camera input. A local camera patch lets a new eligible finger take control without a position jump and clears ended or canceled owners. These features require freshly rewritten game modules; the old NXKeyboard plugin cannot add them to the old executable by itself.
 
 ## Verified cloud build
 
-[Actions run 40924302938](https://github.com/zhhshss/nxnative-botw-build/actions/runs/40924302938) completed successfully on 2026-10-29: 181/181 host sources compiled, the plugin compiled and its signature pages verified, and input regression checks passed. The host object ZIP is approximately 4.6 MB. This is a compiler result, not device validation or a finished game update.
+[Actions run 41262288572](https://github.com/zhhshss/nxnative-botw-build/actions/runs/41262288572) completed successfully on 2026-11-01: source regressions, Windows host/plugin compilation, native aspect/input and production UIKit handler tests, and the complete BOTW IPA build all passed. Restored shader outputs passed their native fingerprints; all 19,592 shader outputs were reused in 57 seconds. The IPA was built from the owner's base game, 1.9.0 update and both DLC containers. Physical iPad gameplay remains untested.
 
-The successful run above predates the Touch the Wild integration and is not validation of the current source pins. The new workflow checks native aspect/input code and the production UIKit handlers separately from the Windows compilation. It does not validate gameplay on a physical iPad.
+| Measured duration | Cold run 41230668664 | Cache run 41262288572 |
+| --- | --- | --- |
+| Complete workflow, including downloads, cache handling, encryption and upload | 2 h 55 m 23 s | 52 m 10 s |
+| Build the IPA step | 2 h 34 m 37 s | 26 m 14 s |
+| iOS shader step | 1 h 41 m 11 s | 57 s, existing outputs reused |
+
+The cache run includes migration and resaving of the earlier cache. The stable cache is now published, and the temporary migration variable has been removed. These measurements apply while shader inputs remain unchanged and the compatible cache is available.
 
 `resource-requirements.json` lists the source containers needed for a shader build. Their bytes are **not** in this repository. Game data stays private and is not an Actions input.
 
@@ -28,9 +34,11 @@ Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUI
 
 The reviewed `--ipa-ci` stage releases downloaded container copies synchronously after all game and DLC extraction succeeds. Reclamation requires the explicit CI flag and the runner's `RUNNER_TEMP/nsp` folder. Compile products remain available throughout Xcode's build.
 
-Completed shaders and GPU pipeline archives are cached as an AES-256-GCM encrypted archive. The cache namespace covers game-file contents, shader sources and profiles, translator binaries, compiler/SDK versions, GPU and password rotation. Native build fingerprints still validate restored outputs. Translator fingerprints use binary contents so a fresh checkout timestamp does not force recompilation. A completed shader build can be cached even if a later Xcode or packing step fails. The previous cold build spent about 77 minutes on iOS shaders and 17 minutes on pipelines; a later build can reuse those results. The first cache population still runs the complete shader build.
+Completed shaders and GPU pipeline archives are cached as an AES-256-GCM encrypted archive. The cache namespace covers game-file contents, shader sources and profiles, translator binaries, compiler/SDK versions, GPU and password rotation. Native build fingerprints still validate restored outputs. Translator fingerprints use binary contents, and compiler fingerprints exclude Metal's randomly mounted `InstalledDir`, so new checkouts and runner mounts can reuse identical results. A completed shader build can be cached even if a later Xcode or packing step fails. The first cache population still runs the complete shader build.
 
-Pickup streams the Actions ZIP and authenticated ciphertext directly into one IPA, verifies its SHA256 against the successful build log, and checks its app entries before publishing the file. The older encrypted ZIP format remains readable. It needs `gh`, `bsdtar` (`libarchive-tools` on Ubuntu), Python `cryptography`, and enough space for one IPA plus 512 MiB:
+For a cache made by the earlier workflow, `LEGACY_METAL_COMPILER_ROOT` can identify its old `Metal.xctoolchain` mount. The workflow reconstructs the old key using every current input, authenticates the cache, validates the native shader fingerprint, and saves migrated outputs under the stable key. `Shader compiler cache diagnostics` records the compiler versions, paths and binary digests for investigating misses.
+
+Pickup reads the Actions ZIP64 central directory with HTTP ranges, then streams the selected entry directly into one IPA. It verifies the entry CRC, authenticates AES-GCM ciphertext, verifies the IPA SHA256 against the successful build log, and checks its app entries before publishing the file. Reading the central directory avoids the ambiguous large data descriptors that make forward-only libarchive extraction fail above 4 GiB. The older encrypted ZIP format remains readable. It needs `gh`, `bsdtar` (`libarchive-tools` on Ubuntu), Python `cryptography`, and enough space for one IPA plus 512 MiB:
 
 ```sh
 python3 scripts/fetch_ipa.py <successful-run-id> \
