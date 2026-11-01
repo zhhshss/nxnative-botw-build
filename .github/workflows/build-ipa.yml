@@ -22,6 +22,13 @@ name: Build BOTW IPA
 
 on:
   workflow_call:
+    inputs:
+      romfs:
+        type: string
+        default: 'nxrom'
+      publish_game_data:
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       package:
@@ -29,9 +36,13 @@ on:
         required: false
         default: ''
       romfs:
-        description: 'bundle = game files inside the IPA; separate = IPA only, push the RomFS afterwards'
+        description: 'nxrom = original importable data package and app IPA; bundle = complete IPA; separate = manual RomFS transfer'
         required: false
-        default: 'bundle'
+        default: 'nxrom'
+      publish_game_data:
+        description: 'Publish the separate data artifact; downloads of the app remain independent'
+        type: boolean
+        default: true
       gpu:
         description: 'NVN pipeline archives, e.g. g18p (empty = default)'
         required: false
@@ -226,11 +237,12 @@ jobs:
           set -euo pipefail
           args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out/BOTW-iPad-Touch.ipa")
           [ -z "$PACKAGE" ] || args+=(-p "$PACKAGE")
-          if [ "$ROMFS" = "separate" ]; then
-            args+=(--romfs separate --keep-extracted)
-          else
-            args+=(--romfs bundle --no-keep-extracted)
-          fi
+          case "${ROMFS:-nxrom}" in
+            nxrom) args+=(--separate-rom --romfs bundle --no-keep-extracted) ;;
+            separate) args+=(--romfs separate --keep-extracted) ;;
+            bundle) args+=(--romfs bundle --no-keep-extracted) ;;
+            *) echo 'unsupported game-data distribution mode'; exit 1 ;;
+          esac
           [ -z "$GPU" ] || args+=(--gpu "$GPU")
           mkdir -p "$RUNNER_TEMP/out"
           # The reviewed patch releases only the runner's downloaded copies,
@@ -277,6 +289,34 @@ jobs:
         with:
           name: botw-ipa-encrypted
           path: ${{ runner.temp }}/publish/**
+          if-no-files-found: ignore
+          retention-days: 3
+          compression-level: 0
+      - name: Publish the independent game-data package
+        if: ${{ inputs.publish_game_data && (inputs.romfs == 'nxrom' || inputs.romfs == '') }}
+        run: |
+          set -euo pipefail
+          data="$RUNNER_TEMP/out/BOTW-iPad-Touch.nxrom"
+          [ -s "$data" ] || { echo 'no .nxrom produced'; exit 1; }
+          sha=$(shasum -a 256 "$data" | awk '{print $1}')
+          printf '%s  %s\n' "$sha" "$data"
+          if [ -n "${R2_BUCKET:-}" ]; then
+            key="${R2_PREFIX:-botw-ipa}/game-data/$sha/$(basename "$data")"
+            command -v aws >/dev/null || brew install awscli
+            AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+              aws --endpoint-url "$R2_ENDPOINT" s3 cp "$data" "s3://$R2_BUCKET/$key"
+          else
+            mkdir -p "$RUNNER_TEMP/publish-data"
+            python3 scripts/shader_cache.py encrypt-ipa --input "$data" \
+              --output "$RUNNER_TEMP/publish-data/$(basename "$data").enc" --sha256 "$sha" --kind game-data
+            printf '%s  %s\n' "$sha" "$(basename "$data")" > "$RUNNER_TEMP/publish-data/SHA256.txt"
+          fi
+      - name: Upload the independent encrypted game-data package
+        if: ${{ inputs.publish_game_data && (inputs.romfs == 'nxrom' || inputs.romfs == '') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: botw-game-data-encrypted
+          path: ${{ runner.temp }}/publish-data/**
           if-no-files-found: ignore
           retention-days: 3
           compression-level: 0

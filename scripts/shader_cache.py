@@ -168,7 +168,7 @@ def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes,
         raise
 
 
-def decrypt_ipa_stream(source, output: Path, expected: str, password: bytes) -> None:
+def decrypt_ipa_stream(source, output: Path, expected: str, password: bytes, kind: str = "ipa") -> None:
     """Authenticate a forward-only encrypted IPA while writing one partial file."""
     created = False
     try:
@@ -182,7 +182,7 @@ def decrypt_ipa_stream(source, output: Path, expected: str, password: bytes) -> 
             raise ValueError("invalid encrypted IPA header")
         encoded = source.read(size)
         metadata = json.loads(encoded)
-        if metadata.get("kind") != "ipa" or metadata.get("key") != expected:
+        if metadata.get("kind") != kind or metadata.get("key") != expected:
             raise ValueError("encrypted IPA identity does not match the build")
         header = MAGIC + encoded_size + encoded
         decryptor = Cipher(algorithms.AES(derive_key(password, bytes.fromhex(metadata["salt"]))),
@@ -292,6 +292,7 @@ def main() -> None:
     p.add_argument("--input", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--sha256", required=True)
+    p.add_argument("--kind", choices=("ipa", "game-data"), default="ipa")
     args = parser.parse_args()
     if args.command == "key":
         versions = [subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT).strip()
@@ -314,7 +315,7 @@ def main() -> None:
         return
     password = os.environ["IPA_ZIP_PASSWORD"].encode()
     if args.command == "encrypt-ipa":
-        encrypt_archive(args.input, args.output, args.sha256, password, kind="ipa")
+        encrypt_archive(args.input, args.output, args.sha256, password, kind=args.kind)
         return
     key = args.key_file.read_text().strip()
     if args.command == "restore":
