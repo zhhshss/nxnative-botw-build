@@ -17,6 +17,8 @@ class RenderBackportTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = Path(os.environ["BOTW_CI_STAGE"])
+        if (cls.source / "build-provenance/current-touch-compat.json").is_file():
+            raise unittest.SkipTest("current touch source has its own compatibility patch")
         cls.patch = prepare_source_tree.PATCH_ROOT / "touchwild-render-pass-20261101.patch"
         cls.manifest = json.loads(cls.patch.with_suffix(".json").read_text())
         spec = importlib.util.spec_from_file_location("render_test_diffapply", cls.source / "webui/diffapply.py")

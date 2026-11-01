@@ -10,7 +10,7 @@ import platform
 import subprocess
 
 GAME = "01007EF00011E000"
-GPU_TARGETS = ("t_feedback", "t_rt_range", "t_unwritten_store")
+GPU_TARGETS = ("t_feedback", "t_rt_range", "t_unwritten_store", "t_framegen", "t_framegen_motion")
 
 
 def run(command, log: Path, env=None, timeout=600):
@@ -30,7 +30,8 @@ def check(stage: Path, output: Path):
         raise ValueError("Use a new output directory outside the source stage")
     output.mkdir(parents=True)
     tests = stage / "dm/gfx/tests"
-    run(["make", "-C", tests, f"GAME={GAME}", "-j2", *GPU_TARGETS, "t_feedback_stats_tsan"], output / "compile.log")
+    run(["make", "-C", tests, f"GAME={GAME}", "-j2", *GPU_TARGETS, "t_framegen_step", "t_feedback_stats_tsan"], output / "compile.log")
+    run([tests / "t_framegen_step"], output / "framegen-step.log", timeout=60)
     environment = dict(os.environ, DM_TEST_FEEDBACK_STATS="1")
     run([tests / "t_feedback"], output / "feedback-stats.log", environment, timeout=60)
     environment["TSAN_OPTIONS"] = "halt_on_error=1"

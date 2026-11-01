@@ -1,0 +1,56 @@
+{
+  "source_commit": "c671dd0b27f4ee4691d26e86dd7ad9de58c9f577",
+  "shader_chain": "ca8b9c5b4e34",
+  "patch_sha256": "309b5d240a1852c7bd26da77e8808183ffb95e478f125e45f1b83536a8086ce0",
+  "files": [
+    {
+      "path": "scripts/build_ipa_from_nsp.py",
+      "before_sha256": "60a872d6ed8c7d8d7e898cd5a056295620eb5bdbedb6b1fe2ef8b1b8e06dd7bc",
+      "after_sha256": "4d8e8c2b49fb96d7066a19bd788666fd26c4b43fa3cfdb3431eae53010f10190"
+    },
+    {
+      "path": "dm/ios/Sources/Launcher.swift",
+      "before_sha256": "00b9ab6ccf01c55aed5058b678fca84a172a9274176de173087372ad2e1cebab",
+      "after_sha256": "e5bf62b597705c4bd377d4dee7f5229409924071d1a18e7720bbf831da7b70d7"
+    },
+    {
+      "path": "dm/ios/tools/build_ipa.sh",
+      "before_sha256": "d39921efee82345e6942b366ab19b16ed417a9f7078324c3d56b7cd261513a28",
+      "after_sha256": "3767f48b846d406f7e74701feb2d606b82ed997cd681003194050fba5976ee24"
+    },
+    {
+      "path": "dm/gfx/nvn/nvn_mtl.m",
+      "before_sha256": "6f9492703d7ab208c1a8f72652da577551227b70ee902346034493ee98fa5f69",
+      "after_sha256": "c1d512b2d9af1b09537edb3035264e1153a29e149a525f94fc08b941f765067c"
+    },
+    {
+      "path": "dm/gfx/tests/t_feedback.m",
+      "before_sha256": "cb2b25f7f889788af1f6a6bf8d7902e4ff6eb01fc2d403ee9e87835c6aaa291e",
+      "after_sha256": "b3e5c6a894e3eba8b89926928dd139e11b69f21ae606e7443f1ab05aa8718bfb"
+    },
+    {
+      "path": "dm/gfx/tests/Makefile",
+      "before_sha256": "676e0cc55d244431e93dee8337bc1de469270845e044d496f360c90b1fb18f96",
+      "after_sha256": "cddc8667eef87b55e15c519af0c658bc6acb814aeeac0704530cffae56281f28"
+    }
+  ],
+  "legacy_source_commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
+  "legacy_files": [
+    {
+      "path": "dm/ios/Sources/GameData.swift",
+      "sha256": "beb3c2b05cd0957f8baccad293e24aee95c72f637b9c0903b45486865a4fab33"
+    },
+    {
+      "path": "dm/ios/tests/game_data_harness.swift",
+      "sha256": "26ba655a5d592d9564efe68259b88e3bbde66aabb3dbc6db131fe16d82ec3bce"
+    },
+    {
+      "path": "dm/ios/tests/test_game_data.py",
+      "sha256": "73662e8c80e03600665e24ccb5a5e793475027c2b02c0a8be810947f1745eca0"
+    },
+    {
+      "path": "dm/ios/tools/game_data.py",
+      "sha256": "e9ccbe826b0928e12ab3a8de40847978f45c560e330b7945ef11ab9bc80831ae"
+    }
+  ]
+}

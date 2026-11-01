@@ -292,7 +292,7 @@ def main() -> None:
     p.add_argument("--input", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--sha256", required=True)
-    p.add_argument("--kind", choices=("ipa", "game-data"), default="ipa")
+    p.add_argument("--kind", choices=("ipa", "game-data", "graphics"), default="ipa")
     args = parser.parse_args()
     if args.command == "key":
         versions = [subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT).strip()

@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import threading
 import struct
+import stat
 from urllib.parse import quote
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -26,6 +27,7 @@ except ImportError:
 NAME = "BOTW-iPad-Touch.ipa"
 APP_NAME = "BOTW-iPad-Touch-App.ipa"
 DATA_NAME = "BOTW-iPad-Touch.nxrom"
+GRAPHICS_NAME = "BOTW-iPad-Touch.graphics.zip"
 CHUNK = 1024 * 1024
 
 
@@ -216,6 +218,89 @@ def extract_game_data_stream(source, output: Path, password: str, descriptor: di
             part.unlink(missing_ok=True)
 
 
+def validate_graphics_package(path: Path, required: dict) -> dict:
+    """Verify the original stored-ZIP inventory and exact app compatibility."""
+    if (not isinstance(required, dict) or required.get("schema") != 1 or
+            not isinstance(required.get("compatibility"), dict) or
+            not isinstance(required.get("series"), str) or
+            type(required.get("minimum_version")) is not int or required["minimum_version"] < 1):
+        raise ValueError("app graphics requirements are invalid")
+    with zipfile.ZipFile(path) as archive:
+        entries = archive.infolist()
+        names = [entry.filename for entry in entries]
+        if not entries or names[0] != "manifest.json" or len(set(names)) != len(names):
+            raise ValueError("graphics archive has no leading manifest or duplicate paths")
+        if not 0 < entries[0].file_size <= 64 << 20:
+            raise ValueError("graphics manifest size is invalid")
+        for entry in entries:
+            parts = entry.filename.split("/")
+            mode = entry.external_attr >> 16
+            if (entry.is_dir() or not re.fullmatch(r"[A-Za-z0-9_./-]+", entry.filename) or
+                    any(part in {"", ".", ".."} for part in parts) or
+                    stat.S_IFMT(mode) not in {0, stat.S_IFREG} or
+                    entry.compress_type != zipfile.ZIP_STORED or entry.flag_bits & 1):
+                raise ValueError("graphics archive has an unsafe or unsupported entry")
+        manifest = json.loads(archive.read(entries[0]))
+        if (not isinstance(manifest, dict) or manifest.get("schema") != 1 or manifest.get("kind") != "graphics" or
+                manifest.get("series") != required["series"] or
+                manifest.get("compatibility") != required["compatibility"] or
+                type(manifest.get("version")) is not int or manifest["version"] < required["minimum_version"]):
+            raise ValueError("graphics package does not meet this app's requirements")
+        files = manifest["files"]
+        if not isinstance(files, list) or any(not isinstance(record, dict) or not isinstance(record.get("path"), str) for record in files):
+            raise ValueError("graphics package inventory is invalid")
+        expected_names = [record["path"] for record in files]
+        if (expected_names != sorted(expected_names) or len(set(expected_names)) != len(expected_names) or
+                set(names) != {"manifest.json", *expected_names}):
+            raise ValueError("graphics archive inventory differs from its manifest")
+        directory = required["compatibility"].get("library")
+        if not isinstance(directory, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", directory):
+            raise ValueError("graphics library directory is invalid")
+        library = "msl/" + directory + "/"
+        if "tables/shader_map.tsv" not in expected_names or not any(name.startswith(library) and name.endswith(".metallib") for name in expected_names):
+            raise ValueError("graphics package lacks its shader map or library")
+        for record in files:
+            name, size, expected = record["path"], record["size"], record["sha256"]
+            if (not name.startswith((library, "tables/", "pso/")) or
+                    Path(name).suffix not in {".metallib", ".json", ".tsv", ".mtl4a"} or
+                    type(size) is not int or size < 0 or size > path.stat().st_size or
+                    archive.getinfo(name).file_size != size or not re.fullmatch(r"[0-9a-f]{64}", expected)):
+                raise ValueError("graphics package has an invalid resource record")
+            h = hashlib.sha256()
+            with archive.open(name) as stream:
+                for block in iter(lambda: stream.read(CHUNK), b""):
+                    h.update(block)
+            if h.hexdigest() != expected:
+                raise ValueError("graphics resource hash differs from its manifest")
+        compiler = hashlib.sha256(json.dumps(manifest["compilers"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        identity = f"nxnative-graphics-v1\n{manifest['series']}\n{manifest['version']}\n{compiler}\n"
+        identity += "".join(f"{r['path']}\t{r['size']}\t{r['sha256']}\n" for r in files)
+        if manifest["compiler_id"] != compiler or manifest["id"] != hashlib.sha256(identity.encode()).hexdigest():
+            raise ValueError("graphics package identity differs from its inventory")
+        return manifest
+
+
+def extract_graphics_stream(source, output: Path, password: str, expected: str, required: dict) -> None:
+    try:
+        from .shader_cache import decrypt_ipa_stream
+    except ImportError:
+        from shader_cache import decrypt_ipa_stream
+    part = output.with_name(output.name + ".partial")
+    if part.exists():
+        raise ValueError("unfinished graphics pickup already exists")
+    created = False
+    try:
+        decrypt_ipa_stream(source, part, expected, password.encode(), kind="graphics")
+        created = True
+        validate_graphics_package(part, required)
+        os.replace(part, output)
+    except Exception as error:
+        raise ValueError("graphics package verification failed") from error
+    finally:
+        if created:
+            part.unlink(missing_ok=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=int)
@@ -226,6 +311,8 @@ def main() -> None:
     parser.add_argument("--public-base", default="http://3.14.160.195:9443")
     parser.add_argument("--with-game-data", action="store_true", help="pick up the independent .nxrom once; app-only is the default")
     parser.add_argument("--data-dir", type=Path, help="optional separate disk for the large .nxrom")
+    parser.add_argument("--with-graphics", action="store_true", help="pick up the separate graphics ZIP only when local graphics are incompatible")
+    parser.add_argument("--graphics-dir", type=Path, help="optional separate disk for the graphics ZIP")
     args = parser.parse_args()
     if not shutil.which("bsdtar"):
         raise ValueError("install libarchive-tools before picking up the IPA")
@@ -245,7 +332,7 @@ def main() -> None:
         raise ValueError("expected one unexpired encrypted IPA artifact")
     artifact = matches[0]
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    separate = "external game data:" in log
+    separate = "external game data:" in log or "graphics package:" in log
     output = args.output_dir / (APP_NAME if separate else NAME)
     current = output.exists() and digest_file(output) == expected
     if output.exists() and not current and not separate:
@@ -262,6 +349,36 @@ def main() -> None:
             with archive.open_entry(entry) as source:
                 pickup = extract_aes_stream if aes else extract_stream
                 pickup(source, output, password, NAME, expected)
+    graphics_output = None
+    if args.with_graphics:
+        with zipfile.ZipFile(output) as app:
+            required = json.loads(app.read("Payload/DmIOS.app/dm/graphics-required.json"))
+        directory = args.graphics_dir or args.output_dir
+        directory.mkdir(parents=True, exist_ok=True)
+        graphics_output = directory / GRAPHICS_NAME
+        compatible = False
+        if graphics_output.exists():
+            try:
+                validate_graphics_package(graphics_output, required)
+                compatible = True
+            except (ValueError, KeyError, zipfile.BadZipFile):
+                pass
+        if not compatible:
+            expected_graphics = expected_digest(log, GRAPHICS_NAME)
+            packages = [a for a in artifacts["artifacts"] if a["name"] == "botw-graphics-encrypted" and not a["expired"]]
+            if len(packages) != 1:
+                raise ValueError("expected one unexpired independent graphics artifact")
+            if shutil.disk_usage(directory).free < packages[0]["size_in_bytes"] + 512 * 2**20:
+                raise ValueError("not enough room for the graphics package plus working space")
+            password = args.password_file.read_text().strip()
+            with RemoteZip(artifact_download_url(args.repo, packages[0]["id"])) as archive:
+                with archive.open_entry(archive.entry(GRAPHICS_NAME + ".enc")) as source:
+                    extract_graphics_stream(source, graphics_output, password, expected_graphics, required)
+        else:
+            print("Existing graphics ZIP is compatible and verified; no repeated graphics download.")
+        graphics_hash = digest_file(graphics_output)
+        graphics_output.with_name(graphics_output.name + ".sha256").write_text(f"{graphics_hash}  {graphics_output.name}\n")
+        print(f"Verified graphics: {graphics_output} ({graphics_output.stat().st_size / 2**30:.2f} GiB)")
     data_output = None
     if args.with_game_data:
         if not separate:
@@ -304,6 +421,8 @@ def main() -> None:
         print(f"Download: {args.public_base.rstrip('/')}/{quote(token, safe='')}/{quote(output.name, safe='')}")
         if data_output and data_output.parent == args.output_dir:
             print(f"Game data: {args.public_base.rstrip('/')}/{quote(token, safe='')}/{quote(data_output.name, safe='')}")
+        if graphics_output and graphics_output.parent == args.output_dir:
+            print(f"Graphics: {args.public_base.rstrip('/')}/{quote(token, safe='')}/{quote(graphics_output.name, safe='')}")
 
 
 if __name__ == "__main__":

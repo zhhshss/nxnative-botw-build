@@ -1,7 +1,7 @@
 {
   "source_base": {
     "repository": "devinhurry/touch-the-wild",
-    "commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88"
+    "commit": "c671dd0b27f4ee4691d26e86dd7ad9de58c9f577"
   },
   "upstream": {
     "repository": "seedds/nxnative",
@@ -14,7 +14,7 @@
   },
   "game_profile": "01007EF00011E000",
   "plugin_version": "0.3.2",
-  "shader_chain": "715bb867230c",
+  "shader_chain": "ca8b9c5b4e34",
   "render_pass_backport": {
     "repository": "devinhurry/touch-the-wild",
     "commits": [
@@ -23,5 +23,11 @@
     ],
     "patch": "touchwild-render-pass-20261101.patch",
     "shader_chain": "715bb867230c"
+  },
+  "current_touch_compatibility": {
+    "patch": "current-touch-compat.patch",
+    "legacy_source_commit": "e1b4196c589735c8b74cfe1f555167a6f380ae88",
+    "data_format": "NXROM001",
+    "graphics_format": "stored ZIP, schema 1"
   }
 }

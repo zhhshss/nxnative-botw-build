@@ -25,7 +25,7 @@ on:
     inputs:
       romfs:
         type: string
-        default: 'nxrom'
+        default: 'separate'
       publish_game_data:
         type: boolean
         default: true
@@ -38,7 +38,7 @@ on:
       romfs:
         description: 'nxrom = original importable data package and app IPA; bundle = complete IPA; separate = manual RomFS transfer'
         required: false
-        default: 'nxrom'
+        default: 'separate'
       publish_game_data:
         description: 'Publish the separate data artifact; downloads of the app remain independent'
         type: boolean
@@ -60,7 +60,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 300
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       PROD_KEYS: ${{ secrets.PROD_KEYS }}
       TITLE_KEYS: ${{ secrets.TITLE_KEYS }}
       GAME_BASE_URL: ${{ secrets.GAME_BASE_URL }}
@@ -72,6 +72,7 @@ jobs:
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       R2_PREFIX: ${{ secrets.R2_PREFIX }}
       IPA_ZIP_PASSWORD: ${{ secrets.IPA_ZIP_PASSWORD }}
+      LEGACY_GAME_DATA_JSON: ${{ secrets.LEGACY_GAME_DATA_JSON }}
       GAME_ARIA2_LIST: ${{ secrets.GAME_ARIA2_LIST }}
       FEED_SSH_KEY: ${{ secrets.FEED_SSH_KEY }}
       FEED_SSH_HOST: ${{ secrets.FEED_SSH_HOST }}
@@ -85,7 +86,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: devinhurry/touch-the-wild
-          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          ref: c671dd0b27f4ee4691d26e86dd7ad9de58c9f577
           path: upstream
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -94,8 +95,14 @@ jobs:
           ref: d1ba3e97876da86ff616c6d8e8d684b968fb8c5d
           path: fork
           persist-credentials: false
-      - name: Prepare the reviewed source tree
-        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --ipa-ci
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          path: legacy
+          persist-credentials: false
+      - name: Prepare the current touch source and legacy data compatibility
+        run: python3 scripts/prepare_touch_upstream.py --upstream upstream --legacy-source legacy --fork fork --output "$RUNNER_TEMP/stage"
       - name: Environment check
         run: |
           xcodebuild -version || true
@@ -109,7 +116,7 @@ jobs:
           du -sh /Applications/Xcode*.app 2>/dev/null || true
           # Keep only the Xcode DEVELOPER_DIR points at; drop the rest of the image's ballast.
           for x in /Applications/Xcode*.app; do
-            [ "$(basename "$x")" = "Xcode_27.1.app" ] && continue
+            [ "$(basename "$x")" = "Xcode_27.2.app" ] && continue
             sudo rm -rf "$x" || true
           done
           sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
@@ -152,6 +159,8 @@ jobs:
           fi
           printf '%s\n' "$PROD_KEYS" > "$RUNNER_TEMP/prod.keys"
           [ -z "${TITLE_KEYS:-}" ] || printf '%s\n' "$TITLE_KEYS" > "$RUNNER_TEMP/title.keys"
+          : "${LEGACY_GAME_DATA_JSON:?set the matching legacy data descriptor}"
+          printf '%s\n' "$LEGACY_GAME_DATA_JSON" > "$RUNNER_TEMP/nsp/legacy-game-data.json"
           ls -l "$dir"; df -h "$RUNNER_TEMP"
           free_gb=$(df -g "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
           # The build script checks again for itself right before extracting
@@ -186,19 +195,6 @@ jobs:
           done
           chmod +x dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
           ls -l dm/gfx/tools/dmsh_xlate_bin/dmsh_xlate dm/gfx/tools/spirv_cross_bin/spirv-cross
-      - name: Restore the SwiftUI launcher for the iOS build
-        working-directory: ${{ runner.temp }}/stage
-        run: |
-          set -euo pipefail
-          # The stage swaps the upstream SwiftUI launcher for xbunax's Objective-C
-          # port, because the Windows object build cannot compile Swift. An IPA is
-          # built with Xcode, where the SwiftUI launcher is the real one; both
-          # export dm_show_launcher, so the port has to go.
-          for f in Launcher.swift LauncherRow.swift LauncherSettings.swift; do
-            cp -p "$GITHUB_WORKSPACE/upstream/dm/ios/Sources/$f" "dm/ios/Sources/$f"
-          done
-          rm -f dm/ios/Sources/DmLauncher.m
-          ls -l dm/ios/Sources/Launcher*.swift
       - name: Identify reusable shader inputs
         id: shader-key
         if: env.IPA_ZIP_PASSWORD != ''
@@ -232,17 +228,18 @@ jobs:
         working-directory: ${{ runner.temp }}/stage
         env:
           DM_CI_RECLAIM_INPUTS: '1'
+          DM_LEGACY_GAME_DATA_DESCRIPTOR: ${{ runner.temp }}/nsp/legacy-game-data.json
           DM_CI_LEGACY_METAL_COMPILER_ROOT: ${{ vars.LEGACY_METAL_COMPILER_ROOT }}
         run: |
           set -euo pipefail
           args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out/BOTW-iPad-Touch.ipa")
           [ -z "$PACKAGE" ] || args+=(-p "$PACKAGE")
-          case "${ROMFS:-nxrom}" in
-            nxrom) args+=(--separate-rom --romfs bundle --no-keep-extracted) ;;
-            separate) args+=(--romfs separate --keep-extracted) ;;
+          case "${ROMFS:-separate}" in
+            nxrom|separate) args+=(--romfs separate --keep-extracted) ;;
             bundle) args+=(--romfs bundle --no-keep-extracted) ;;
             *) echo 'unsupported game-data distribution mode'; exit 1 ;;
           esac
+          args+=(--graphics separate)
           [ -z "$GPU" ] || args+=(--gpu "$GPU")
           mkdir -p "$RUNNER_TEMP/out"
           # The reviewed patch releases only the runner's downloaded copies,
@@ -292,31 +289,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
           compression-level: 0
-      - name: Publish the independent game-data package
-        if: ${{ inputs.publish_game_data && (inputs.romfs == 'nxrom' || inputs.romfs == '') }}
+      - name: Publish the independent graphics package
         run: |
           set -euo pipefail
-          data="$RUNNER_TEMP/out/BOTW-iPad-Touch.nxrom"
-          [ -s "$data" ] || { echo 'no .nxrom produced'; exit 1; }
-          sha=$(shasum -a 256 "$data" | awk '{print $1}')
-          printf '%s  %s\n' "$sha" "$data"
+          package=$(python3 -c 'from pathlib import Path; import os; files=list((Path(os.environ["RUNNER_TEMP"])/"out").glob("*.graphics.v*.zip")); assert len(files)==1,files; print(files[0])')
+          sha=$(shasum -a 256 "$package" | awk '{print $1}')
+          printf '%s  %s\n' "$sha" "$RUNNER_TEMP/out/BOTW-iPad-Touch.graphics.zip"
           if [ -n "${R2_BUCKET:-}" ]; then
-            key="${R2_PREFIX:-botw-ipa}/game-data/$sha/$(basename "$data")"
-            command -v aws >/dev/null || brew install awscli
+            key="${R2_PREFIX:-botw-ipa}/graphics/$sha/$(basename "$package")"
             AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
-              aws --endpoint-url "$R2_ENDPOINT" s3 cp "$data" "s3://$R2_BUCKET/$key"
+              aws --endpoint-url "$R2_ENDPOINT" s3 cp "$package" "s3://$R2_BUCKET/$key"
           else
-            mkdir -p "$RUNNER_TEMP/publish-data"
-            python3 scripts/shader_cache.py encrypt-ipa --input "$data" \
-              --output "$RUNNER_TEMP/publish-data/$(basename "$data").enc" --sha256 "$sha" --kind game-data
-            printf '%s  %s\n' "$sha" "$(basename "$data")" > "$RUNNER_TEMP/publish-data/SHA256.txt"
+            mkdir -p "$RUNNER_TEMP/publish-graphics"
+            python3 scripts/shader_cache.py encrypt-ipa --input "$package" \
+              --output "$RUNNER_TEMP/publish-graphics/BOTW-iPad-Touch.graphics.zip.enc" --sha256 "$sha" --kind graphics
           fi
-      - name: Upload the independent encrypted game-data package
-        if: ${{ inputs.publish_game_data && (inputs.romfs == 'nxrom' || inputs.romfs == '') }}
+      - name: Upload the independent encrypted graphics package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: botw-game-data-encrypted
-          path: ${{ runner.temp }}/publish-data/**
+          name: botw-graphics-encrypted
+          path: ${{ runner.temp }}/publish-graphics/**
           if-no-files-found: ignore
           retention-days: 3
           compression-level: 0

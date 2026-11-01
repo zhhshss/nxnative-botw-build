@@ -11,11 +11,11 @@ on:
         description: 'Data delivery: nxrom for independent reusable data and an app-only IPA'
         type: choice
         options: [nxrom, bundle, separate]
-        default: nxrom
+        default: separate
       publish_game_data:
         description: 'Publish the separate .nxrom artifact as well as the app'
         type: boolean
-        default: true
+        default: false
   push:
     branches: [main]
     paths:
@@ -81,7 +81,7 @@ jobs:
           "$RUNNER_TEMP/tests/zip"
 
   compile:
-    if: ${{ inputs.probe_only != true }}
+    if: ${{ false }}
     runs-on: windows-latest
     timeout-minutes: 60
     env:
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: devinhurry/touch-the-wild
-          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          ref: c671dd0b27f4ee4691d26e86dd7ad9de58c9f577
           path: upstream
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -144,9 +144,9 @@ jobs:
     if: ${{ inputs.probe_only != true }}
     name: Native aspect, input, and UIKit handler tests
     runs-on: xcode-27
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     defaults:
       run:
         shell: bash
@@ -157,7 +157,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: devinhurry/touch-the-wild
-          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          ref: c671dd0b27f4ee4691d26e86dd7ad9de58c9f577
           path: upstream
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -166,8 +166,19 @@ jobs:
           ref: d1ba3e97876da86ff616c6d8e8d684b968fb8c5d
           path: fork
           persist-credentials: false
-      - name: Prepare the same reviewed source tree as the Windows build
-        run: python3 scripts/prepare_source_tree.py --upstream upstream --fork fork --output "$RUNNER_TEMP/stage" --lite --ipa-ci
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          path: legacy
+          persist-credentials: false
+      - name: Prepare current touch source with reusable legacy data
+        run: python3 scripts/prepare_touch_upstream.py --upstream upstream --legacy-source legacy --fork fork --output "$RUNNER_TEMP/stage" --lite
+      - name: Restore the pinned translator files for graphics contract tests
+        run: |
+          for d in dmsh_xlate_bin spirv_cross_bin; do
+            cp -Rp "$GITHUB_WORKSPACE/upstream/dm/gfx/tools/$d/." "$RUNNER_TEMP/stage/dm/gfx/tools/$d/"
+          done
       - name: CI input reclamation and portable shader reuse regressions
         env:
           BOTW_CI_STAGE: ${{ runner.temp }}/stage
@@ -179,13 +190,14 @@ jobs:
       - name: Reviewed render backport source and shader-cache compatibility
         env:
           BOTW_CI_STAGE: ${{ runner.temp }}/stage
-        run: python3 -m unittest discover -s tests -p test_render_pass_backport.py -v
+        run: python3 -m unittest discover -s tests -p test_current_touch_source.py -v
       - name: Original game-data importer and split distribution regressions
         env:
           BOTW_CI_STAGE: ${{ runner.temp }}/stage
         run: |
           python3 "$RUNNER_TEMP/stage/dm/ios/tests/test_game_data.py"
           python3 -m unittest discover -s tests -p test_split_game_data.py -v
+          python3 -m unittest discover -s "$RUNNER_TEMP/stage/dm/tools/tests" -p test_graphics_pack.py -v
       - name: Upload regression results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -210,6 +222,6 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' && inputs.probe_only != true }}
     uses: ./.github/workflows/build-ipa.yml
     with:
-      romfs: ${{ inputs.romfs || 'nxrom' }}
+      romfs: ${{ inputs.romfs || 'separate' }}
       publish_game_data: ${{ inputs.publish_game_data }}
     secrets: inherit

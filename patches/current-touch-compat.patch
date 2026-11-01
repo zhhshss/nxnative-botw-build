@@ -1,0 +1,263 @@
+diff --git a/scripts/build_ipa_from_nsp.py b/scripts/build_ipa_from_nsp.py
+--- a/scripts/build_ipa_from_nsp.py
++++ b/scripts/build_ipa_from_nsp.py
+@@ -955,10 +955,11 @@
+     return sorted(out, key=lambda x: x[0])
+ 
+ 
+-def fingerprint(*items, env=None):
++def fingerprint(*items, env=None, compiler_root=None):
+     """sha256 over a stage's inputs. Items: ('files', paths) = names and content (a missing file counts too); ('tree', folder) = relative path and size of every file under it
+     (a RomFS: check_build pins its version, so names and sizes stand for its content); ('stat', folder) = relative path, size and mtime of every file under it (the translator's binaries);
+-    ('cmd', argv) = a tool's version output (run with env); anything else = its repr"""
++    ('cmd', argv) = a tool's version output without its volatile InstalledDir (run with env); anything else = its repr.
++    compiler_root reconstructs an old compiler-location fingerprint for a checked CI cache migration"""
+     h = hashlib.sha256()
+     for it in items:
+         kind, v = it if isinstance(it, tuple) and len(it) == 2 and it[0] in ('files', 'tree', 'stat', 'cmd') else ('repr', it)
+@@ -971,7 +972,15 @@
+         elif kind in ('tree', 'stat'):
+             for rel, st in files_under(v): h.update(f'{rel}\0{st.st_size}\0{st.st_mtime_ns if kind == "stat" else ""}\n'.encode())
+         elif kind == 'cmd':
+-            try: r = subprocess.run(v, env=env, capture_output=True, text=True, timeout=120); h.update((r.stdout + r.stderr).encode())
++            try:
++                r = subprocess.run(v, env=env, capture_output=True, text=True, timeout=120)
++                version = r.stdout + r.stderr
++                if compiler_root:
++                    version = re.sub(r'(?m)^(InstalledDir: )[^\n]*?/Metal\.xctoolchain([^\n]*)$',
++                                     lambda m: m.group(1) + compiler_root + m.group(2), version)
++                else:
++                    version = re.sub(r'(?m)^InstalledDir:.*\n?', '', version)
++                h.update(version.encode())
+             except (OSError, subprocess.TimeoutExpired): h.update(b'missing')
+         else: h.update(repr(v).encode())
+     return h.hexdigest()
+@@ -2075,11 +2084,25 @@
+     if not pso_pairs.is_file(): pso_pairs = sh / 'pso_pairs.tsv'   # the split's copy is a shader input too (vs_pad)
+     if pkg_key:
+         PROG.set(step='checking the inputs')
+-        key = fingerprint(pkg_key, ('files', chain_files(repo)), ('stat', xlate.parent), ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
+-                          {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')}, env=env)
+-        note = next((n for k in ((kmac, kf) if mac else (kf,)) if (n := reused(k, key)) is not None), None)
++        inputs = (pkg_key, ('files', chain_files(repo)), ('files', [xlate.parent / rel for rel, _ in files_under(xlate.parent)]),
++                  ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
++                  {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')})
++        key = fingerprint(*inputs, env=env)
++        keyfiles = (kmac, kf) if mac else (kf,)
++        note = next((n for k in keyfiles if (n := reused(k, key)) is not None), None)
++        legacy_file = None
++        # The old key included the random Metal cryptex mount. Reconstruct that
++        # exact key from all current inputs, not an arbitrary cached key.
++        legacy_root = env.get('DM_CI_LEGACY_METAL_COMPILER_ROOT') if env.get('GITHUB_ACTIONS') == 'true' else None
++        if note is None and legacy_root:
++            legacy_key = fingerprint(*inputs, env=env, compiler_root=legacy_root)
++            legacy_file = next((k for k in keyfiles if reused(k, legacy_key) is not None), None)
++            if legacy_file is not None: note = reused(legacy_file, legacy_key)
+         # the libraries are the last build's, so are tables that name their stamp; a missing or stale one is made from that build's Mac outputs, and without them the step runs again
+         if next(libs.glob('*_b.metallib'), None) and note is not None and chain_tables(py, repo, sh, env, logs, g, chain):
++            if legacy_file is not None:
++                legacy_file.write_text(f'{key}\n{note}\n')
++                say('migrated shader reuse fingerprint: identical inputs, compiler install path excluded')
+             prune_stale_chains(sh, chain)
+             PROG.end(f'{note}, reused (inputs unchanged)'); return out
+     else: key = None
+@@ -2563,6 +2586,23 @@
+     if provisional:
+         say(f'[RED] this {artifact} was built from a provisional game profile and the game may not boot: {g.dir}')
+         say(f'  bring-up on the Mac: DM_GAMES_DIR="{g.dir.parent}" make -C dm/host GAME={g.id} dmhost, see docs/agents')
++
++
++def reclaim_ci_inputs(nsp_dir, env):
++    """Release downloaded CI copies only after all extraction has succeeded."""
++    if env.get('DM_CI_RECLAIM_INPUTS') != '1':
++        return 0
++    runner_temp = env.get('RUNNER_TEMP')
++    if (env.get('GITHUB_ACTIONS') != 'true' or not runner_temp or
++            nsp_dir.resolve() != Path(runner_temp).resolve() / 'nsp'):
++        raise BuildError('CI input reclamation requires RUNNER_TEMP/nsp on a GitHub Actions runner')
++    removed = 0
++    for container in nsp_dir.iterdir():
++        if container.is_file() and container.suffix.lower() in {'.nsp', '.nsz', '.xci', '.xcz'}:
++            container.unlink()
++            removed += 1
++    say(f'CI: released {removed} input container copies after extraction; {free_gb(nsp_dir):.1f} GB free')
++    return removed
+ 
+ 
+ def main(args=None):
+@@ -2726,6 +2766,7 @@
+         if on: say(src[k][1])
+     PROG.add(glslc + vkcap + glcap + uedec + (gfx == 'nvn'))
+     aoc = extract_aoc(nx_cmd, keys, repo, work, app, fam, logs)
++    reclaim_ci_inputs(nsp_dir, env)
+     dlc_roms = sorted(p for p in aoc.iterdir() if p.is_dir() or p.suffix == '.img') if aoc else []
+     base = next((dirs[v] for v in versions if picks[v][1] is None), dirs[versions[0]])   # the folder the base game was extracted to alone
+     # the app name and bundle ID both come from the base NSP: the game name in its control data, and a bundle ID from its title ID; a setting / the command line overrides them
+diff --git a/dm/ios/Sources/Launcher.swift b/dm/ios/Sources/Launcher.swift
+--- a/dm/ios/Sources/Launcher.swift
++++ b/dm/ios/Sources/Launcher.swift
+@@ -205,7 +205,28 @@
+         DispatchQueue.global(qos: .userInitiated).async {
+             var error: NSError?
+             let ok: Bool
+-            if kind == .rom { ok = dm_import_game_image(url, documents, &error) }
++            if kind == .rom && url.pathExtension.lowercased() == "nxrom" {
++                var failure: Error?
++                var coordinationError: NSError?
++                NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readable in
++                    do {
++                        guard let descriptor = Bundle.main.url(forResource: "game-data", withExtension: "json", subdirectory: "dm") else {
++                            throw GameData.fail("This app does not accept this game-data package.")
++                        }
++                        let expected = try JSONDecoder().decode(GameDataDescriptor.self, from: Data(contentsOf: descriptor))
++                        var lastProgress = Date.distantPast
++                        try GameData.install(readable, expected: expected, in: documents) { fraction in
++                            let now = Date()
++                            if now.timeIntervalSince(lastProgress) >= 0.1 || fraction == 1 {
++                                lastProgress = now
++                                DispatchQueue.main.async { importProgress = fraction }
++                            }
++                        }
++                    } catch { failure = error }
++                }
++                error = coordinationError ?? (failure as NSError?)
++                ok = error == nil
++            } else if kind == .rom { ok = dm_import_game_image(url, documents, &error) }
+             else {
+                 let required = dm_graphics_requirements(Bundle.main.resourceURL!) ?? [:]
+                 var lastProgress = Date.distantPast
+diff --git a/dm/ios/tools/build_ipa.sh b/dm/ios/tools/build_ipa.sh
+--- a/dm/ios/tools/build_ipa.sh
++++ b/dm/ios/tools/build_ipa.sh
+@@ -82,6 +82,10 @@
+ t "app: $DM_DISPLAY_NAME $DM_APP_VERSION ($DM_BUNDLE_ID), language $DM_LANG$([ $DM_SHOW_FPS = YES ] && echo ', frame-rate counter on')"
+ t "generate Gen/ (host sources, embedded modules, tables)"
+ rm -rf Gen && mkdir -p Gen/dm Gen/Localizations || die "mkdir Gen"
++if [ -n "${DM_LEGACY_GAME_DATA_DESCRIPTOR:-}" ]; then
++  [ -f "$DM_LEGACY_GAME_DATA_DESCRIPTOR" ] || die "legacy game-data descriptor is missing"
++  cp "$DM_LEGACY_GAME_DATA_DESCRIPTOR" Gen/dm/game-data.json || die "copy legacy game-data descriptor"
++fi
+ if [ "$GAME" = 01007EF00011E000 ]; then
+   cp -R "$IOS_SOURCE/Sources/"*.lproj Gen/Localizations/ || die "copy BOTW launcher localizations"
+ fi
+diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
+--- a/dm/gfx/nvn/nvn_mtl.m
++++ b/dm/gfx/nvn/nvn_mtl.m
+@@ -3362,7 +3362,7 @@
+ static int g_geo_omit_colors, g_enc_geo_nocolor;
+ static int g_rt_range_active, g_rt_range_pending;
+ static int g_rt_merged;         // The current pass has already been continued (at least one same-target SetRenderTargets was merged in)
+-static uint64_t g_rt_merge_n;   // Cumulative continuation count
++static _Atomic uint64_t g_rt_merge_n;   // Cumulative continuation count
+ static int g_defer_replaying;
+ static void fz_end(void);   // Wrap-up of the readable-tile pass merge (defined before draw)
+ static void defer_fallback(void);
+@@ -5061,7 +5061,7 @@
+ static int prog_swrites(NvProg *pr) {
+     int w = 0;
+     for (int st = 0; pr && st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
+-        for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].rw && (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_SBUFP)) { w |= st == 0 ? 1 : st == 1 ? 2 : 4; break; } }
++        for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].rw && (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_SBUFP || sh->rf.b[i].kind == NVN_RB_SBUFU)) { w |= st == 0 ? 1 : st == 1 ? 2 : 4; break; } }
+     return w;
+ }
+ static void order_note(NvProg *pr) {   // after each draw of the pass: does it read memory in a stage after the vertex stage (anything bound there but samplers and driver data)
+@@ -7265,7 +7265,7 @@
+     return pf_r32i(t.pixelFormat) && tex_atomic_capable(base) && t.textureType == (MTLTextureType)b->dtt && t.sampleCount == 1;
+ }
+ // Snapshot substitution for same-pass feedback sampling (registered by fb_prepare, used by encode_args; see the notes before draw)
+-static uint64_t g_draw_seq, g_fb_seq, g_fb_count; static int g_fb_n, g_fb_rebind;
++static uint64_t g_draw_seq, g_fb_seq; static _Atomic uint64_t g_fb_count; static int g_fb_n, g_fb_rebind;
+ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTexture> g_fb_use[4]; static uint64_t g_fb_rid[4];
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen, g_args_ser_seen;
+@@ -9354,7 +9354,7 @@
+ // a fresh snapshot for each took the Mac's GPU time from about 4 to 28 ms a frame, reuse until a barrier needs about ten a frame (GPU time within the noise of none).
+ // DM_NVN_FB_SNAP=0 none, all a fresh snapshot for every draw sampling an attachment of its pass (diagnostic)
+ static int g_fb_mode = -1;   // 0 none, 1 writers with reuse until a barrier, 2 every sampling draw, fresh
+-static uint64_t g_fb_bar, g_fb_reuse, g_fb_split, g_fb_bytes, g_fb_refresh[5];   // refresh: first/evicted, barrier, submission, shape/usage, forced
++static uint64_t g_fb_bar, g_fb_split; static _Atomic uint64_t g_fb_reuse, g_fb_bytes, g_fb_refresh[5];   // refresh: first/evicted, barrier, submission, shape/usage, forced
+ static uint64_t g_fb_pass = UINT64_MAX; static uint32_t g_fb_wmask, g_fb_rmask;   // the current Metal render pass: color attachments written so far, sampled directly
+ typedef struct { uint64_t ser, bar, sub; int lv, sl; __strong id<MTLTexture> snap; } fb_cache_t;
+ static fb_cache_t g_fbc[8]; static int g_fbc_next;
+diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
+--- a/dm/gfx/tests/t_feedback.m
++++ b/dm/gfx/tests/t_feedback.m
+@@ -9,6 +9,57 @@
+ static int checks, failed;
+ static NvProg *barrier_writer;
+ #define CHECK(c, label) do { checks++; if (!(c)) { failed++; fprintf(stderr, "FAIL: %s\n", label); } } while (0)
++
++// No GPU needed: the present thread samples production diagnostics while the
++// encode thread changes counters. Run separately under ThreadSanitizer.
++enum { FEEDBACK_STATS_ITERATIONS = 200000 };
++static _Atomic int feedback_stats_finished;
++static void *feedback_stats_encode(void *unused) {
++    (void)unused;
++    for (int i = 0; i < FEEDBACK_STATS_ITERATIONS; i++) {
++        g_fb_count++; g_fb_bytes += 1024; g_fb_reuse += 3;
++        g_fb_refresh[i % 5]++; g_rt_merge_n++;
++    }
++    atomic_store(&feedback_stats_finished, 1);
++    return NULL;
++}
++static int feedback_stats_sample(uint64_t *total) {
++    char line[512]; unsigned long long copies = 0;
++    mtl_feedback_stats(line, sizeof line);
++    if (sscanf(line, "copies %llu", &copies) != 1) return 0;
++    *total += copies;
++    return 1;
++}
++static int feedback_stats_check(void) {
++    NvProg *program = [NvProg new];
++    __attribute__((objc_precise_lifetime)) NvShader *shader = [NvShader new];
++    program->sh[1] = shader; shader->rf.nb = 1;
++    int kinds[] = {NVN_RB_IMG, NVN_RB_SBUFP, NVN_RB_SBUFU};
++    for (unsigned i = 0; i < sizeof kinds / sizeof kinds[0]; i++) {
++        shader->rf.b[0] = (nvn_rbind){.kind=kinds[i], .rw=1};
++        if (prog_swrites(program) != 2) {
++            fprintf(stderr, "FAIL: writable binding kind %d was not classified as a fragment write\n", kinds[i]); return 1;
++        }
++        shader->rf.b[0].rw = 0;
++        if (prog_swrites(program)) { fprintf(stderr, "FAIL: read-only binding classified as a write\n"); return 1; }
++    }
++    pthread_t worker;
++    if (pthread_create(&worker, NULL, feedback_stats_encode, NULL)) return 1;
++    uint64_t total = 0; int valid = 1;
++    do {
++        valid &= feedback_stats_sample(&total);
++    } while (!atomic_load(&feedback_stats_finished));
++    if (pthread_join(worker, NULL)) return 1;
++    valid &= feedback_stats_sample(&total);
++    if (!valid || total != FEEDBACK_STATS_ITERATIONS ||
++            atomic_load(&g_fb_bytes) != FEEDBACK_STATS_ITERATIONS * 1024ull ||
++            atomic_load(&g_fb_reuse) != FEEDBACK_STATS_ITERATIONS * 3ull ||
++            atomic_load(&g_rt_merge_n) != FEEDBACK_STATS_ITERATIONS) {
++        fprintf(stderr, "FAIL: feedback counters lost updates\n"); return 1;
++    }
++    puts("feedback diagnostic counters: PASS (concurrent encode/present, no GPU)");
++    return 0;
++}
+ 
+ static id<MTLTexture> target(tex_t *t, uint64_t serial) {
+     *t = (tex_t){.magic=MAGIC('T','E','X',0), .serial=serial};
+@@ -195,6 +246,8 @@
+     mtl_tex_release(&source); mtl_tex_release(&output);
+ }
+ int main(void) { @autoreleasepool {
++    const char *stats = getenv("DM_TEST_FEEDBACK_STATS");
++    if (stats && !strcmp(stats, "1")) return feedback_stats_check();
+     setenv("DM_NVN_TBDR", "0", 1);
+     mtl_init(); NSError *error = nil;
+     id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+diff --git a/dm/gfx/tests/Makefile b/dm/gfx/tests/Makefile
+--- a/dm/gfx/tests/Makefile
++++ b/dm/gfx/tests/Makefile
+@@ -245,6 +245,8 @@
+ check_t_geometry: RUN_ENV = MTL_DEBUG_LAYER=1
+ t_feedback: t_feedback.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_feedback.m $(MTL_T_SRC) $(FW)
++t_feedback_stats_tsan: t_feedback.m $(MTL_T_DEP)
++	clang $(CFLAGS) -fobjc-arc -fsanitize=thread -o $@ t_feedback.m $(MTL_T_SRC) $(FW)
+ t_rast_discard: t_rast_discard.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_rast_discard.m $(MTL_T_SRC) $(FW)
+ t_queue_origin: t_queue_origin.m $(MTL_T_DEP)
