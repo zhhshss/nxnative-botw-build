@@ -372,6 +372,55 @@ def apply_ipa_ci_patch(stage: Path, engine) -> dict:
             "strict_replay_verified": True}
 
 
+def apply_render_patch(stage: Path, engine, lite: bool = False) -> dict:
+    """Verify the whole reviewed backport before changing any staged file."""
+    patch_path = PATCH_ROOT / "touchwild-render-pass-20261101.patch"
+    manifest_path = patch_path.with_suffix(".json")
+    patch, manifest_bytes = patch_path.read_bytes(), manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    if (manifest["source_commit"] != UPSTREAM_PIN or
+            manifest["merged_upstream_commit"] != MERGED_UPSTREAM_PIN or
+            manifest["shader_chain"] != UPSTREAM_CHAIN or
+            manifest["patch_sha256"] != digest(patch)):
+        raise PreparationError("Reviewed render-pass patch identity mismatch")
+    patches = {}
+    for chunk in re.split(rb"(?=^diff --git )", patch, flags=re.MULTILINE):
+        if not chunk.strip():
+            continue
+        target, _ = engine._parse(chunk, None)
+        safe_relative(target)
+        if target in patches:
+            raise PreparationError(f"Duplicate render-pass patch target: {target}")
+        patches[target] = chunk
+    records = manifest["files"]
+    if len({row["path"] for row in records}) != len(records) or set(patches) != {row["path"] for row in records}:
+        raise PreparationError("Render-pass patch and manifest target sets differ")
+    pending, excluded = [], []
+    for record in records:
+        target = safe_relative(record["path"])
+        if lite and not keep_source(target, "upstream", lite):
+            excluded.append(target)
+            continue
+        path = stage / target
+        before = path.read_bytes()
+        if digest(before) != record["before_sha256"]:
+            raise PreparationError(f"Render-pass patch input differs: {target}")
+        after = engine.apply_bytes(before, patches[target], target)
+        if digest(after) != record["after_sha256"]:
+            raise PreparationError(f"Render-pass patch result differs: {target}")
+        pending.append((path, after))
+    for path, after in pending:
+        path.write_bytes(after)
+    provenance = stage / "build-provenance"
+    (provenance / patch_path.name).write_bytes(patch)
+    (provenance / manifest_path.name).write_bytes(manifest_bytes)
+    return {"patch": patch_path.name, "patch_sha256": digest(patch),
+            "manifest_sha256": digest(manifest_bytes), "files": records,
+            "upstream_changes": manifest["upstream_changes"],
+            "adaptations": manifest["adaptations"], "excluded_paths": excluded,
+            "strict_replay_verified": True, "device_tested": False}
+
+
 def prepare(upstream: Path, fork: Path, output: Path, lite: bool, ipa_ci: bool = False) -> dict:
     verify_pin(upstream, UPSTREAM_PIN)
     verify_pin(fork, FORK_PIN)
@@ -441,6 +490,7 @@ def prepare(upstream: Path, fork: Path, output: Path, lite: bool, ipa_ci: bool =
             raise PreparationError("Expected exactly the nine reviewed fork hooks")
         camera_patch = apply_camera_patch(temporary, engine)
         ipa_ci_patch = apply_ipa_ci_patch(temporary, engine) if ipa_ci else None
+        render_patch = apply_render_patch(temporary, engine, lite)
         removed = []
         for target in SWIFT_REMOVED:
             path = temporary / target
@@ -466,6 +516,7 @@ def prepare(upstream: Path, fork: Path, output: Path, lite: bool, ipa_ci: bool =
                          "shader_chain": UPSTREAM_CHAIN},
             "upstream_merge": upstream_merge,
             "camera_input_patch": camera_patch,
+            "render_pass_patch": render_patch,
             "fork": {"repository": "https://github.com/xbunax/nxnative", "commit": FORK_PIN,
                      "patch_base": FORK_BASE},
             "copied": copied, "patch_application": "unique full-context relocation, regenerated diff, strict replay",

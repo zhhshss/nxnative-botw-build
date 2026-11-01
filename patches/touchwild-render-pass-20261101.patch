@@ -1,0 +1,772 @@
+diff --git a/dm/games/01007EF00011E000/README.md b/dm/games/01007EF00011E000/README.md
+--- a/dm/games/01007EF00011E000/README.md
++++ b/dm/games/01007EF00011E000/README.md
+@@ -881,3 +881,27 @@
+ existing shader libraries must be rebuilt before launching this host. The regular
+ build script detects the chain change. Its upstream image workflow needs Python
+ 3.12 or newer.
++
++## Render-pass backport (2026-11-01)
++
++Current candidate: the user reports an M3 iPad starting near 60 FPS and later
++running in the 40s. The supplied screenshot shows 48.98 FPS, GPU 18.89 ms,
++nominal thermal state and zero shaders compiling. It establishes GPU work
++above a 16.67 ms budget at that instant; it does not identify the cause of
++the change over time.
++
++This candidate backports Touch the Wild commits `1983d2d3cc44` and
++`2004eb433426`: guarded identical-target continuation, precise ordinary
++color-write accounting and compression-eligible feedback snapshots.
++Required copies remain; barrier/submission invalidation is unchanged.
++The [general mechanism](../../../docs/reference/rendering.md#render-pass-reuse-and-compression-without-removing-feedback-copies)
++includes the exact safety guards. The launcher exposes Memory transfer
++optimization, enabled by default. No game code, profile addresses or shader
++chain changes are needed; the original NXROM data identity is retained.
++
++Upstream reported exact before/after images for 24 BOTW replay comparisons,
++with 2-3 fewer passes and about 9-16 MiB/frame of estimated attachment
++traffic saved. These are upstream observations, not a benchmark of this
++backport or this iPad. The candidate includes the corresponding synthetic
++GPU regression tests. Physical-device sustained FPS and image acceptance
++remain open. Disable the optimization for a fresh-process comparison.
+diff --git a/dm/games/settings.tsv b/dm/games/settings.tsv
+--- a/dm/games/settings.tsv
++++ b/dm/games/settings.tsv
+@@ -53,6 +53,7 @@
+ DM_BOTW_PAD_DPAD_SCALE	range	0.5:1.5:0.01	1.000	DM_GAME_ID==01007EF00011E000	Touch layout	D-pad: Size	Applies only to BOTW touch controls.
+ DM_BOTW_PAD_FACE_GAP	range	0.5:1.5:0.01	1.060	DM_GAME_ID==01007EF00011E000	Touch layout	XYAB: Button spacing	Changes spacing within the group.
+ DM_BOTW_PAD_BADGES	toggle	-	0	DM_GAME_ID==01007EF00011E000	Touch layout	Corner button labels	Shows the small letter circles on L, R, ZR and XYAB.
++DM_NVN_PASS_REUSE	toggle	-	1	gfxapi:nvn	Performance	Memory transfer optimization	Reduces GPU image reads and writes. Turn off if rendering errors appear. Applies when you press Play.
+ DM_PRESENT_SNAP	toggle	-	DM_GAME_PRESENT_SNAP	gfxapi:nvn	Performance	Frame buffering	Up to one frame more display latency.
+ DM_PSO_MTL4	toggle	-	DM_GAME_PSO_MTL4|1	gfxapi:nvn	Performance	Metal 4 pipelines	Keeps a pipeline archive; uses more memory.
+ DM_PSO_PREBUILD	toggle	-	1	gfxapi:nvn	Performance	Pipeline prebuild	The first start waits a few minutes for it, once.
+diff --git a/dm/gfx/nvn/hle_nvn.c b/dm/gfx/nvn/hle_nvn.c
+--- a/dm/gfx/nvn/hle_nvn.c
++++ b/dm/gfx/nvn/hle_nvn.c
+@@ -1464,6 +1464,9 @@
+         LOG("[nvn] power up to frame %llu: CPU energy %.2f W, %.1f mJ per frame (%.1f fps); CPU %.0f%% (100 = one core), %.0f%% of it on performance cores; wakeups %.0f/s (out of platform idle %.0f); GPU %.1f ms/s; thermal %d; top yielders: %s", frame,
+             (e - pe) / 1e9 / s, (e - pe) / 1e6 / nf, nf / s, (cpu - pcpu) / 1e7 / s, cpu > pcpu ? 100.0 * (double)(p - pp) / (double)(cpu - pcpu) : 0, (iw - piw) / s, (idw - ppw) / s, (g - pg) / 1e6 / s, dm_thermal_now(), yt);
+         char rs[400]; mtl_res_stats(rs, sizeof rs); static uint64_t pbs, pbf; uint64_t bs, bf; mtl_barrier_stats(&bs, &bf);
++        void mtl_feedback_stats(char *out, size_t n);
++        char feedback[400]; mtl_feedback_stats(feedback, sizeof feedback);
++        LOG("[nvn] feedback snapshots up to frame %llu: %s", frame, feedback);
+         uint64_t mtl_cut_count(void), mtl_copy_cut_count(void), mtl_blit_splits(void); void mtl_ubd_stats(uint64_t *, uint64_t *); static uint64_t pcut, pccut, pbsp, pud, puc; uint64_t cut = mtl_cut_count(), ccut = mtl_copy_cut_count(), bsp = mtl_blit_splits(), ud, uc; mtl_ubd_stats(&ud, &uc);
+         void mtl_ubp_stats(uint64_t *, uint64_t *, uint64_t *); static uint64_t ppm, ppr, ppf; uint64_t pm, pr, pf_; mtl_ubp_stats(&pm, &pr, &pf_);
+         void mtl_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; mtl_lc_stats(&lt, &ll);
+diff --git a/dm/gfx/nvn/nvn_geometry.inc b/dm/gfx/nvn/nvn_geometry.inc
+--- a/dm/gfx/nvn/nvn_geometry.inc
++++ b/dm/gfx/nvn/nvn_geometry.inc
+@@ -452,7 +452,7 @@
+     g_geo_omit_colors = 0;
+     g_geo_program = nil; g_geo_mesh.on = 0; args_dirty_all();
+     if (g_geo_mesh.miss) { g_geo_mesh_wait++; return 0; }
+-    swrite_note(pr); udc_note_draw(pr); g_wr_epoch++; g_mdx_epoch++;   // the kernel's storage writes
++    swrite_note(pr); udc_note_draw(pr, 0); g_wr_epoch++; g_mdx_epoch++;   // the kernel's storage writes
+     if (!g_geo_mesh_n++) MLOG("geometry mesh: first mesh draw, vertex %s kernel %s, %u triangles", pr->sh[0]->key, g_geo_mesh.lean->key, g_geo_mesh.a.count / 3);
+     return 1;
+ }
+@@ -660,7 +660,7 @@
+         enc_c_args(ce, j->lean_job, 0); enc_c_pso(ce, g_geo_lean_k[j->direct_count ? 2 : 0]);
+         enc_c_dispatch(ce, MTLSizeMake((j->groups + 63) / 64, 1, 1), MTLSizeMake(64, 1, 1));
+     }
+-    swrite_note(j->pr); udc_note_draw(j->pr); g_wr_epoch++; g_mdx_epoch++;
++    swrite_note(j->pr); udc_note_draw(j->pr, 0); g_wr_epoch++; g_mdx_epoch++;
+ }
+ static void geo_raster(const geo_job *j, int last_in_run) {
+     g_geo_bind[1] = j->output;
+diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
+--- a/dm/gfx/nvn/nvn_mtl.m
++++ b/dm/gfx/nvn/nvn_mtl.m
+@@ -3031,7 +3031,7 @@
+         const char *a = getenv("DM_NVN_UDC_AB"); if (a && !strcmp(a, "1")) { g_udc_ab = 0; g_udc_ab_on = 0; } }
+     return g_udc_ab || g_udc_ab_on;
+ }
+-// DM_NVN_TBDR=0 disables lookahead and pass merging. The independent unwritten-attachment proof remains active; DM_NVN_UNWRITTEN_DC=0 disables that too.
++// DM_NVN_TBDR=0 disables lookahead merging. Local exact-target and unwritten-attachment proofs run independently; DM_NVN_PASS_REUSE / DM_NVN_UNWRITTEN_DC control them.
+ // Only for equivalence comparison (the same replay run on / off, comparing the picture byte by byte), not a product configuration
+ // Mario: off by default (only DM_NVN_TBDR=1 turns it on). These optimizations infer read / write relations from "which textures are bound in texture slots", while 38% of this game's shaders use bindless textures (handles in uniform buffers, NVN_RB_TEXU),
+ //   so the inference would miss readers - e.g. deciding an attachment is never read afterwards and not storing it. Turn them back on once they recognize bindless readers.
+@@ -3187,7 +3187,7 @@
+ static int g_geo_omit_colors, g_enc_geo_nocolor;
+ static int g_rt_range_active, g_rt_range_pending;
+ static int g_rt_merged;         // The current pass has already been continued (at least one same-target SetRenderTargets was merged in)
+-static uint64_t g_rt_merge_n;   // Cumulative continuation count
++static _Atomic uint64_t g_rt_merge_n;   // Cumulative continuation count
+ static int g_defer_replaying;
+ static void fz_end(void);   // Wrap-up of the readable-tile pass merge (defined before draw)
+ static void defer_fallback(void);
+@@ -3376,10 +3376,9 @@
+     g_enc_mode = clear_only; g_enc_geo_nocolor = g_geo_omit_colors; g_pass_swrite = g_pass_order = g_pass_late_res = 0; g_sm_pass = 0;
+     if (!R.has_rt) { RED_ONCE(3, "no render target set before the draw"); return nil; }
+     if (g_imfit_npend) img_fit_upgrade();   // no pass is open here: the upgrade's copy may run (img_fit)
+-    // The version of the attachment-range candidate is taken before capturing any attachment; if it changes during setup, there is no continuation.
+-    uint64_t reg0 = 0, ser0 = 0, dirty0 = 0;
+-    if (rt_range_on()) { reg0 = g_reg_gen; ser0 = g_ser_gen; }
+-    if (rt_range_on()) dirty0=nvn_dirty_now();
++    // Take versions before resolving attachments: replacement or CPU writes
++    // during setup invalidate either kind of target continuation.
++    uint64_t reg0 = g_reg_gen, ser0 = g_ser_gen, dirty0 = nvn_dirty_now();
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     MTL4RenderPassDescriptor *pd = [MTL4RenderPassDescriptor new];
+     int any = 0;
+@@ -3536,8 +3535,8 @@
+         g_pass.dfmt = g_pass.hd ? (uint32_t)dt.pixelFormat : 0; g_pass.sfmt = stt ? (uint32_t)stt.pixelFormat : 0;
+         if (dt || stt) g_pass.samples = (uint32_t)(dt ? dt : stt).sampleCount;
+         pass_dims(pd, (NSUInteger)R.rt.n, &g_pass.tw, &g_pass.th);
+-        if (rt_range_on()) { g_pass.reg_gen = reg0; g_pass.ser_gen = ser0; }
+-        if (rt_range_on()) { g_pass.range_dirty=dirty0; g_pass.range_color=pd.colorAttachments[0].texture; g_pass.range_depth=pd.depthAttachment.texture; }
++        g_pass.reg_gen = reg0; g_pass.ser_gen = ser0; g_pass.range_dirty = dirty0;
++        if (rt_range_on()) { g_pass.range_color=pd.colorAttachments[0].texture; g_pass.range_depth=pd.depthAttachment.texture; }
+         g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
+     }
+     if (g_vis_on) {
+@@ -4833,7 +4832,11 @@
+     if (g_pass_swrite) { g_vbuf_write_epoch++; return; }   // further shader writes also invalidate aligned vertex snapshots
+     if (prog_swrites(pr)) { g_pass_swrite = 1; g_vbuf_write_epoch++; }
+ }
+-static void udc_note_draw(NvProg *pr) {
++// One diagnostic control for comparing these local pass-reuse proofs against
++// the former split/store policy, including DM_AB phases in the same run.
++static int pass_reuse_on(void) { static int mode = -1; if (mode < 0) mode = sw_mode("DM_NVN_PASS_REUSE", 1); return sw_on(mode); }
++static void udc_note_draw(NvProg *pr, int ordinary_outputs) {
++    ordinary_outputs = ordinary_outputs && pass_reuse_on();
+     int td = tbdr_on();
+     if (!td && !udc_on()) {
+         uint32_t cm = pr && pr->sh[1] ? pr->sh[1]->rf.color_mask : 0;
+@@ -4859,7 +4862,13 @@
+     for (int i = 0; i < g_nsd; i++) {
+         sd_att *t = &g_sd[i];
+         if (image_write) { t->wrote = 1; t->wwhy = 1; }
+-        else if (t->depth == 0 && t->idx >= 0 && (((S.chmask.mask >> (4 * t->idx)) & 0xf) || (shader_color_mask >> t->idx & 1))) { t->wrote = 1; t->wwhy = (S.chmask.mask >> (4 * t->idx)) & 0xf ? 2 : 3; }
++        else if (t->depth == 0 && t->idx >= 0) {
++            int channels = (S.chmask.mask >> (4 * t->idx)) & 0xf, output = shader_color_mask >> t->idx & 1;
++            // Ordinary pipelines disable writes when either the channel mask or
++            // the shader output is absent (pso_desc). Specialized/remapped
++            // outputs retain the conservative rule; writable aliases above do too.
++            if (ordinary_outputs ? channels && output : channels || output) { t->wrote = 1; t->wwhy = channels ? 2 : 3; }
++        }
+         else if (t->depth == 1 && S.ds.dw) { t->wrote = 1; t->wwhy = 4; }
+         else if (t->depth == 2 && S.ds.st && (S.st_wmask[0] || S.st_wmask[1])
+                 && (S.ds.fail_f != NVN_STENCIL_OP_KEEP || S.ds.zfail_f != NVN_STENCIL_OP_KEEP || S.ds.zpass_f != NVN_STENCIL_OP_KEEP
+@@ -6914,7 +6923,7 @@
+     return pf_r32i(t.pixelFormat) && tex_atomic_capable(base) && t.textureType == (MTLTextureType)b->dtt && t.sampleCount == 1;
+ }
+ // Snapshot substitution for same-pass feedback sampling (registered by fb_prepare, used by encode_args; see the notes before draw)
+-static uint64_t g_draw_seq, g_fb_seq, g_fb_count; static int g_fb_n, g_fb_rebind;
++static uint64_t g_draw_seq, g_fb_seq; static _Atomic uint64_t g_fb_count; static int g_fb_n, g_fb_rebind;
+ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTexture> g_fb_use[4]; static uint64_t g_fb_rid[4];
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen, g_args_ser_seen;
+@@ -8882,7 +8891,7 @@
+ // a fresh snapshot for each took the Mac's GPU time from about 4 to 28 ms a frame, reuse until a barrier needs about ten a frame (GPU time within the noise of none).
+ // DM_NVN_FB_SNAP=0 none, all a fresh snapshot for every draw sampling an attachment of its pass (diagnostic)
+ static int g_fb_mode = -1;   // 0 none, 1 writers with reuse until a barrier, 2 every sampling draw, fresh
+-static uint64_t g_fb_bar, g_fb_reuse, g_fb_split;   // game barriers so far (OP_BARRIER with bits); draws that reused a snapshot; passes ended before a write to an attachment an earlier draw read
++static uint64_t g_fb_bar, g_fb_split; static _Atomic uint64_t g_fb_reuse, g_fb_bytes, g_fb_refresh[5];   // refresh: first/evicted, barrier, submission, shape/usage, forced
+ static uint64_t g_fb_pass = UINT64_MAX; static uint32_t g_fb_wmask, g_fb_rmask;   // the current Metal render pass: color attachments written so far, sampled directly
+ typedef struct { uint64_t ser, bar, sub; int lv, sl; __strong id<MTLTexture> snap; } fb_cache_t;
+ static fb_cache_t g_fbc[8]; static int g_fbc_next;
+@@ -8893,17 +8902,49 @@
+ }
+ static inline void fb_pass_sync(void) { uint64_t p = g_stat_pass + !g_enc; if (p != g_fb_pass) { g_fb_pass = p; g_fb_wmask = g_fb_rmask = 0; } }
+ // The snapshot of an attachment's level and layer: the cached one (valid: *fresh = 0) or a texture to copy into (*fresh = 1; the entry is then valid from this barrier and submission on)
+-static fb_cache_t *fb_snap(uint64_t ser, int lv, int sl, MTLPixelFormat pf, NSUInteger w, NSUInteger h, int force, int *fresh) {
++static id<MTLTexture> fb_texture(MTLPixelFormat pf, NSUInteger w, NSUInteger h, int need_pfv) {
++    MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pf width:w height:h mipmapped:NO];
++    // PixelFormatView disables lossless compression on Apple GPUs. Ordinary
++    // reads, channel swizzles and linear/sRGB view pairs do not need it.
++    d.usage = MTLTextureUsageShaderRead | (need_pfv ? MTLTextureUsagePixelFormatView : 0); d.storageMode = MTLStorageModePrivate;
++    id<MTLTexture> t = [g_dev newTextureWithDescriptor:d]; if (t) res_add(t); return t;
++}
++static fb_cache_t *fb_snap(uint64_t ser, int lv, int sl, MTLPixelFormat pf, NSUInteger w, NSUInteger h, int need_pfv, int force, int *fresh) {
+     fb_cache_t *e = NULL;
+     for (int i = 0; i < 8 && !e; i++) if (g_fbc[i].snap && g_fbc[i].ser == ser && g_fbc[i].lv == lv && g_fbc[i].sl == sl) e = &g_fbc[i];
++    int matched = e != NULL;
++    uint64_t old_bar = e ? e->bar : 0, old_sub = e ? e->sub : 0;
++    int shape = e && (e->snap.pixelFormat != pf || e->snap.width != w || e->snap.height != h);
+     if (e && (e->snap.pixelFormat != pf || e->snap.width != w || e->snap.height != h)) { defer_obj_release(e->snap); e->snap = nil; }
+-    if (e && e->snap && !force && e->bar == g_fb_bar && e->sub == g_sub_serial) { *fresh = 0; return e; }
++    if (e && e->snap && !force && e->bar == g_fb_bar && e->sub == g_sub_serial) {
++        if (need_pfv && !(e->snap.usage & MTLTextureUsagePixelFormatView)) {
++            id<MTLTexture> old = e->snap, t = fb_texture(pf, w, h, 1);
++            if (!t) MDIE("feedback snapshot format-view upgrade allocation failed");
++            // Keep the cached version: later draws since the barrier may have
++            // changed the attachment, so copying that source again is wrong.
++            if (g_enc) rp_end();
++            enc_b_copy_texture(blit(), old, 0, 0, MTLOriginMake(0, 0, 0), MTLSizeMake(w, h, 1), t, 0, 0, MTLOriginMake(0, 0, 0));
++            e->snap = t; defer_obj_release(old); g_fb_count++; g_fb_bytes += att_bytes(t, 0); g_fb_refresh[3]++;
++            PD("F feedback format-view upgrade ser=%llu preserves the cached snapshot", (unsigned long long)ser);
++        }
++        *fresh = 0; return e;
++    }
++    PD("F feedback refresh ser=%llu lv%d sl%d matched=%d force=%d barrier=%llu->%llu submission=%llu->%llu", (unsigned long long)ser, lv, sl, matched, force,
++       (unsigned long long)old_bar, (unsigned long long)g_fb_bar, (unsigned long long)old_sub, (unsigned long long)g_sub_serial);
+     if (!e) { e = &g_fbc[g_fbc_next]; g_fbc_next = (g_fbc_next + 1) & 7;
+         if (e->snap && (e->snap.pixelFormat != pf || e->snap.width != w || e->snap.height != h)) { defer_obj_release(e->snap); e->snap = nil; } }
+-    if (!e->snap) { MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pf width:w height:h mipmapped:NO];
+-        d.usage = MTLTextureUsageShaderRead | MTLTextureUsagePixelFormatView; d.storageMode = MTLStorageModePrivate;
+-        e->snap = [g_dev newTextureWithDescriptor:d]; if (!e->snap) { e->ser = 0; return NULL; } res_add(e->snap); }   // full queue barriers separate a copy from the draws that read the earlier content
+-    e->ser = ser; e->lv = lv; e->sl = sl; e->bar = g_fb_bar; e->sub = g_sub_serial; *fresh = 1; return e;
++    if (e->snap && need_pfv && !(e->snap.usage & MTLTextureUsagePixelFormatView)) { defer_obj_release(e->snap); e->snap = nil; }
++    if (!e->snap) { e->snap = fb_texture(pf, w, h, need_pfv); if (!e->snap) { e->ser = 0; return NULL; } }   // full queue barriers separate a copy from the draws that read the earlier content
++    e->ser = ser; e->lv = lv; e->sl = sl; e->bar = g_fb_bar; e->sub = g_sub_serial;
++    g_fb_refresh[force ? 4 : shape ? 3 : !matched ? 0 : old_sub != g_sub_serial ? 2 : 1]++;
++    *fresh = 1; return e;
++}
++void mtl_feedback_stats(char *out, size_t n) {
++    static uint64_t prev[9];
++    uint64_t v[9] = {g_fb_count, g_fb_bytes, g_fb_reuse, g_fb_refresh[0], g_fb_refresh[1], g_fb_refresh[2], g_fb_refresh[3], g_fb_refresh[4], g_rt_merge_n}, d[9];
++    for (int i = 0; i < 9; i++) { d[i] = v[i] - prev[i]; prev[i] = v[i]; }
++    snprintf(out, n, "copies %llu / %.1f MB, reused by %llu draws; refresh first/evicted %llu, barrier %llu, submission %llu, shape %llu, forced %llu; identical-target continuations %llu",
++             d[0], d[1] / 1048576.0, d[2], d[3], d[4], d[5], d[6], d[7], d[8]);
+ }
+ // Called before the draw opens its render pass: if a snapshot is needed, end the current render pass, copy the snapshot (or reuse a valid one) and register the substitution (used by this draw's argument encoding)
+ static void fb_prepare(NvProg *pr) {
+@@ -8936,11 +8977,13 @@
+                 RED_ONCE(80, "same-pass feedback sampling: the sampled view is not a single-level 2D view of the attachment's level and layer (type %lu levels %lu+%lu layer %lu, attachment level %d layer %d, shader %s); left as is", (unsigned long)t.textureType, (unsigned long)tl, (unsigned long)t.mipmapLevelCount, (unsigned long)ts, lv, sl, fs->key);
+                 continue; }
+             NSUInteger w = MAX(base.width >> lv, 1ul), h = MAX(base.height >> lv, 1ul); int fresh;
+-            fb_cache_t *e = fb_snap(ser, lv, sl, base.pixelFormat, w, h, g_fb_mode == 2, &fresh); if (!e) continue;
++            int need_pfv = !pass_reuse_on() || tex_need_pfv(base.pixelFormat, t.pixelFormat);
++            fb_cache_t *e = fb_snap(ser, lv, sl, base.pixelFormat, w, h, need_pfv, g_fb_mode == 2, &fresh); if (!e) continue;
+             id<MTLTexture> snap = e->snap;
+             if (fresh) {
+                 if (g_enc) rp_end();
+                 id<MTL4ComputeCommandEncoder> be = blit(); enc_b_copy_texture(be, base, (NSUInteger)sl, (NSUInteger)lv, MTLOriginMake(0, 0, 0), MTLSizeMake(w, h, 1), snap, 0, 0, MTLOriginMake(0, 0, 0));
++                g_fb_bytes += att_bytes(snap, 0);
+             } else if (g_enc && (g_fb_rmask >> k & 1)) rp_end();   // an earlier draw of this pass read the attachment directly: it must not see this pass's writes
+             if (!g_enc) fb_pass_sync();
+             MTLTextureSwizzleChannels sw = t.swizzle;
+@@ -8952,8 +8995,8 @@
+             if (!fresh) { g_fb_reuse++; PD("N %llu same-pass feedback sampling: attachment %d ser=%llu level %d layer %d: this draw samples the snapshot taken since the last barrier", g_stat_pass + !g_enc, k, (unsigned long long)ser, lv, sl); continue; }
+             g_fb_count++;
+             if (g_fb_count == 1 || g_fb_count == 10 || g_fb_count == 1000 || g_fb_count % 100000 == 0)
+-                MLOG("same-pass feedback sampling: snapshot #%llu, %llu draws reused one, %llu passes ended before a write to an attachment read directly (frame %llu pass %llu, shader %s slot %d samples attachment %d ser=%llu %lux%lu format %lu)", (unsigned long long)g_fb_count, (unsigned long long)g_fb_reuse, (unsigned long long)g_fb_split,
+-                     (unsigned long long)atomic_load(&g_cur_frame), g_stat_pass + !g_enc, fs->key, b->reg, k, (unsigned long long)ser, (unsigned long)w, (unsigned long)h, (unsigned long)base.pixelFormat);
++                MLOG("same-pass feedback sampling: snapshot #%llu, %llu draws reused one, %llu passes ended before a write to an attachment read directly (frame %llu pass %llu, shader %s slot %d samples attachment %d ser=%llu %lux%lu format %lu, snapshot usage %#lx)", (unsigned long long)g_fb_count, (unsigned long long)g_fb_reuse, (unsigned long long)g_fb_split,
++                     (unsigned long long)atomic_load(&g_cur_frame), g_stat_pass + !g_enc, fs->key, b->reg, k, (unsigned long long)ser, (unsigned long)w, (unsigned long)h, (unsigned long)base.pixelFormat, (unsigned long)snap.usage);
+             PD("N %llu same-pass feedback sampling: attachment %d ser=%llu level %d layer %d copied into a snapshot; this draw samples the snapshot", g_stat_pass + !g_enc, k, (unsigned long long)ser, lv, sl);
+         } }
+     g_fb_wmask |= wm;
+@@ -9684,8 +9727,8 @@
+         static int once2; if (!once2++) MLOG("same-target continuation: a draw in the continued pass needs a depth / stencil plane that is not attached; split here (first case pass %llu)", g_stat_pass);
+         PD("M %llu a draw in the continued pass needs a depth / stencil plane that is not attached; split here", g_stat_pass); rp_end(); }
+     if (g_rt_range_active && (!rt_range_pr_ro(pr) || !S.ds.dt || S.ds.dw || S.ds.st)) rp_end();   // The external write visibility at the original encoder boundary is not removed
+-    if (g_rt_merged && draw_samples_rt(pr)) { static int once; if (!once++) MLOG("same-target continuation: a draw in the continued pass samples an attachment; split here (first case pass %llu)", g_stat_pass);
+-        PD("M %llu a draw in the continued pass samples an attachment; split here", g_stat_pass); rp_end(); }
++    if (g_rt_merged && (draw_samples_rt(pr) || prog_swrites(pr))) { static int once; if (!once++) MLOG("same-target continuation: a draw samples an attachment or writes shader resources; split here (first case pass %llu)", g_stat_pass);
++        PD("M %llu a draw samples an attachment or writes shader resources; split here", g_stat_pass); rp_end(); }
+     order_draw(pr, g_fz.active || g_sm_pass || g_defer_replaying);   // a write after an ordering barrier in the pass
+     static id<MTLFunction> fz_fn;   // Specialized fragment function for this draw of the later pass in a merged render pass (nil = use the original version)
+     if (g_fz.active && g_enc && g_fz.phase == 2 && (lop_on() || !fz_p2_draw(pr, dw, di, g_fz.lmap2, &fz_fn))) {   // Cannot be proven (or a logic operation, which needs the shader's own targets: lop_key): end the merged render pass (the earlier pass's result is stored as usual) and reopen with the later pass's original targets
+@@ -9842,7 +9885,8 @@
+         again = 1; draw(dw, di); again = 0; return;
+     }
+     // Parameter binding captures the actual resources under the registry lock; if the version changed between the eligibility check and the binding, split and retry before any GPU draw.
+-    if (g_rt_range_active && (g_pass.reg_gen != g_reg_gen || g_pass.ser_gen != g_ser_gen || g_pass.range_dirty != nvn_dirty_now())) { rp_end(); draw(dw, di); return; }
++    if ((g_rt_range_active || (g_rt_merged && !tbdr_on())) &&
++        (g_pass.reg_gen != g_reg_gen || g_pass.ser_gen != g_ser_gen || g_pass.range_dirty != nvn_dirty_now())) { rp_end(); draw(dw, di); return; }
+     int prim = dw ? dw->prim : di->prim;
+     MTLPrimitiveType mp;
+     switch (prim) {
+@@ -9918,7 +9962,7 @@
+ #ifdef NVN_RT_RANGE_TEST
+     rr_snap(dw,di);
+ #endif
+-    udc_note_draw(pr);
++    udc_note_draw(pr, !g_fz.active && !g_defer_replaying && !g_geo_program && !g_geo_mesh.on);
+     swrite_note(pr); order_note(pr);
+     if (g_geo_mesh.on) { geo_mesh_encode(en); return; }
+     if (g_geo_program) {
+@@ -10925,6 +10969,8 @@
+                    n >= 4 ? ((const float *)((const uint8_t *)a + 16))[0] : 0.f, n >= 8 ? ((const float *)((const uint8_t *)a + 16))[1] : 0.f, n >= 12 ? ((const float *)((const uint8_t *)a + 16))[2] : 0.f, n >= 16 ? ((const float *)((const uint8_t *)a + 16))[3] : 0.f); mtl_sub_update((const uint8_t *)a + 16, d, n); break; }
+             case OP_SET_RT: {
+                 const p_set_rt *r = a;
++                PD("Y set_rt cmd=%p same=%d open=%d previous_pass=%llu colors=%d depth=%llu", p, R.has_rt && rt_same(&R.rt, r), g_enc != nil,
++                   (unsigned long long)g_stat_pass, r->n, (unsigned long long)(r->depth ? r->depth->serial : 0));
+                 if (defer_begin_q(p)) break;
+                 int pend = R.clear_d || R.clear_s; for (int i = 0; i < 8; i++) pend |= R.clear_c[i];
+                 if (g_enc && !pend && R.has_rt && tbdr_on() && rt_range_same(&R.rt,r)) {
+@@ -10932,7 +10978,13 @@
+                 if (g_enc && g_fz.active && g_fz.phase == 1 && fz_reuse_op(p) && !pend && g_enc_mode != 1 && R.has_rt && tbdr_on() && rt_same(&g_fz.rt1, r)) {
+                     g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); break; }
+                 // Do not continue a render pass opened only for a clear; one with fewer depth / stencil attachments can be continued (check the planes before drawing)
+-                if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && tbdr_on() && rt_same(&R.rt, r)) { g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
++                // Keeping identical attachments needs no lookahead. Outside the
++                // experimental path keep all planes, preserve shader-write
++                // boundaries, and split before any later attachment read/write alias.
++                if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && (tbdr_on() || (pass_reuse_on() && g_enc_mode == 0 && !g_pass_swrite &&
++                    g_pass.reg_gen == g_reg_gen && g_pass.ser_gen == g_ser_gen && g_pass.range_dirty == nvn_dirty_now())) && rt_same(&R.rt, r)) {
++                    g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass);
++                    PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
+                 if (g_enc && g_sm_pass && !pend && !g_game_barrier) { int sl;   // another layer of the slice-merged pass's level (sm_scan planned it)
+                     if (sm_rt_slice(&R.rt, r, &sl) && sl >= g_sm_lo && sl <= g_sm_hi) { R.rt = *r; g_sm_cur = sl; g_sm_ncont++;
+                         { void td_note_layer(id<MTLTexture>, uint64_t, NSUInteger, NSUInteger); td_note_layer(tex_mtl(r->color[0]), r->color[0]->serial, r->cview[0].set_levels ? r->cview[0].base_level : 0, (NSUInteger)sl); } PD("M %llu slice-merged pass goes on in layer %d", g_stat_pass, sl); break; } }
+@@ -11004,7 +11056,7 @@
+                 PD("I %llu barrier bits %#x%s", g_stat_pass, bits, split ? ": ends the pass (shader writes)" : order ? " (render pass open; a later shader write is ordered after its draws)" : g_enc ? " (render pass open)" : "");
+                 if (split) { rp_end(); static int once; if (!once++) MLOG("a game barrier (bits %#x) after shader writes in a draw pass: the pass ends there (first case pass %llu)", bits, (unsigned long long)g_stat_pass); }
+                 else if (order) g_pass_order |= (bits & NVN_BARRIER_ORDER_PRIMITIVES_BIT ? 1 : 0) | (bits & (NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT) ? 2 : 0);
+-                if (bits) { g_game_barrier = 1; g_fb_bar++; } break; }   // g_fb_bar: snapshots taken before it are stale (see fb_prepare)
++                if (bits) { g_game_barrier = 1; g_fb_bar++; } break; }   // Snapshots taken before a barrier are stale (see fb_prepare).
+             case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: state_op(h.op, a); break;
+             default: break;
+         }
+diff --git a/dm/gfx/tests/Makefile b/dm/gfx/tests/Makefile
+--- a/dm/gfx/tests/Makefile
++++ b/dm/gfx/tests/Makefile
+@@ -195,6 +195,8 @@
+ check_t_geometry: RUN_ENV = MTL_DEBUG_LAYER=1
+ t_feedback: t_feedback.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_feedback.m $(MTL_T_SRC) $(FW)
++t_feedback_stats_tsan: t_feedback.m $(MTL_T_DEP)
++	clang $(CFLAGS) -fobjc-arc -fsanitize=thread -o $@ t_feedback.m $(MTL_T_SRC) $(FW)
+ t_rast_discard: t_rast_discard.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_rast_discard.m $(MTL_T_SRC) $(FW)
+ t_queue_origin: t_queue_origin.m $(MTL_T_DEP)
+@@ -239,6 +241,10 @@
+ .PHONY: check_t_feedback
+ check_t_feedback: t_feedback
+ 	MTL_DEBUG_LAYER=1 ./t_feedback
++	DM_NVN_PASS_REUSE=0 MTL_DEBUG_LAYER=1 ./t_feedback
++	DM_NVN_ENC_THREAD=1 MTL_DEBUG_LAYER=1 ./t_feedback
++	DM_NVN_ENC_THREAD=1 DM_NVN_PASS_REUSE=0 MTL_DEBUG_LAYER=1 ./t_feedback
++	DM_NVN_UNWRITTEN_DC=0 MTL_DEBUG_LAYER=1 ./t_feedback
+ t_mip_extent: t_mip_extent.m ../nvn/hle_nvn.c ../../host/crash.c ../../host/hle_bigstack.c t_host_stubs.c $(GFX) $(GFX_H)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_mip_extent.m ../../host/crash.c ../../host/hle_bigstack.c t_host_stubs.c $(filter-out ../nvn/nvn_mtl.m,$(GFX)) $(FW)
+ .PHONY: check_t_mip_extent
+@@ -253,6 +259,10 @@
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_rt_range.m $(MTL_T_SRC) $(FW)
+ .PHONY: check_t_rt_range
+ check_t_rt_range: t_rt_range
++	MTL_DEBUG_LAYER=1 ./t_rt_range --same-target
++	MTL_DEBUG_LAYER=1 ./t_rt_range --same-target --sample-attachment
++	MTL_DEBUG_LAYER=1 ./t_rt_range --same-target --registry-change
++	DM_NVN_PASS_REUSE=0 MTL_DEBUG_LAYER=1 ./t_rt_range --same-target
+ 	DM_NVN_UNWRITTEN_DC=0 MTL_DEBUG_LAYER=1 ./t_rt_range
+ 	MTL_DEBUG_LAYER=1 ./t_rt_range   # DontCare on by default: attachment bytes use the closed-form expectation of "one depth-stencil store saved per pass"
+ 	DM_NVN_UNWRITTEN_DC=0 MTL_DEBUG_LAYER=1 ./t_rt_range --disabled
+@@ -343,6 +353,9 @@
+ t_unwritten_store: t_unwritten_store.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_unwritten_store.m $(MTL_T_SRC) $(FW)
+ check_t_unwritten_store: RUN_ENV = MTL_DEBUG_LAYER=1
++check_t_unwritten_store: t_unwritten_store
++	MTL_DEBUG_LAYER=1 ./t_unwritten_store
++	DM_NVN_PASS_REUSE=0 MTL_DEBUG_LAYER=1 ./t_unwritten_store
+ t_upgrade_alias: t_upgrade_alias.m $(MTL_T_DEP)
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_upgrade_alias.m $(MTL_T_SRC) $(FW)
+ check_t_upgrade_alias: RUN_ENV = MTL_DEBUG_LAYER=1
+diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
+--- a/dm/gfx/tests/t_feedback.m
++++ b/dm/gfx/tests/t_feedback.m
+@@ -7,7 +7,47 @@
+ void svc_thread_dump(void) {}
+ uint64_t now_ns(void) { return bp_now(); }
+ static int checks, failed;
++static NvProg *barrier_writer;
+ #define CHECK(c, label) do { checks++; if (!(c)) { failed++; fprintf(stderr, "FAIL: %s\n", label); } } while (0)
++
++// No GPU needed: the present thread samples production diagnostics while the
++// encode thread changes counters. Run separately under ThreadSanitizer.
++enum { FEEDBACK_STATS_ITERATIONS = 200000 };
++static _Atomic int feedback_stats_finished;
++static void *feedback_stats_encode(void *unused) {
++    (void)unused;
++    for (int i = 0; i < FEEDBACK_STATS_ITERATIONS; i++) {
++        g_fb_count++; g_fb_bytes += 1024; g_fb_reuse += 3;
++        g_fb_refresh[i % 5]++; g_rt_merge_n++;
++    }
++    atomic_store(&feedback_stats_finished, 1);
++    return NULL;
++}
++static int feedback_stats_sample(uint64_t *total) {
++    char line[512]; unsigned long long copies = 0;
++    mtl_feedback_stats(line, sizeof line);
++    if (sscanf(line, "copies %llu", &copies) != 1) return 0;
++    *total += copies;
++    return 1;
++}
++static int feedback_stats_check(void) {
++    pthread_t worker;
++    if (pthread_create(&worker, NULL, feedback_stats_encode, NULL)) return 1;
++    uint64_t total = 0; int valid = 1;
++    do {
++        valid &= feedback_stats_sample(&total);
++    } while (!atomic_load(&feedback_stats_finished));
++    if (pthread_join(worker, NULL)) return 1;
++    valid &= feedback_stats_sample(&total);
++    if (!valid || total != FEEDBACK_STATS_ITERATIONS ||
++            atomic_load(&g_fb_bytes) != FEEDBACK_STATS_ITERATIONS * 1024ull ||
++            atomic_load(&g_fb_reuse) != FEEDBACK_STATS_ITERATIONS * 3ull ||
++            atomic_load(&g_rt_merge_n) != FEEDBACK_STATS_ITERATIONS) {
++        fprintf(stderr, "FAIL: feedback counters lost updates\n"); return 1;
++    }
++    puts("feedback diagnostic counters: PASS (concurrent encode/present, no GPU)");
++    return 0;
++}
+ 
+ static id<MTLTexture> target(tex_t *t, uint64_t serial) {
+     *t = (tex_t){.magic=MAGIC('T','E','X',0), .serial=serial};
+@@ -115,13 +155,94 @@
+     printf("feedback reuse: %s\n", before == failed ? "PASS" : "FAIL");
+     mtl_tex_release(&source);
+ }
++// Write-mask store elision must preserve the source for a later snapshot.
++// A barrier still refreshes it: red if untouched, green after a real write.
++static void barrier_case(NvProg *pr, int mode) {
++    int tid = 680 + mode; tex_t source; target(&source, 99800 + mode);
++    mtl_reg_tex(tid, &source, NULL);
++    prog_t program = {.serial = 99810 + mode}; serial_put(program.serial, pr);
++    id<MTLBuffer> result = [g_dev newBufferWithLength:1024 options:MTLResourceStorageModeShared]; res_add(result);
++    state_reset(); memset(&R, 0, sizeof R); mtl_sub_begin();
++    R.has_rt = 1; R.rt.n = 1; R.rt.color[0] = &source;
++    S.prog = &program; S.tex[1][0] = tid; S.chmask.mask = UINT32_MAX;
++    pr->sh[1]->rf.b[0].reg = 0;
++    clear(MTLClearColorMake(1, 0, 0, 1)); rp_end();
++    uint64_t copies = g_fb_count;
++    fb_prepare(pr);
++    CHECK(g_fb_count == copies + 1, "initial feedback snapshot copied");
++    S.chmask.mask = 0;
++    p_draw draw = {.prim = NVN_DRAW_PRIMITIVE_TRIANGLES, .count = 3, .instances = 1};
++    draw_(&draw, NULL);
++    CHECK(g_enc != nil, "read-only attachment draw keeps its render pass open");
++    if (mode == 1) {
++        struct { op_hdr h; p_clear_color c; op_hdr end; } code = {
++            {OP_CLEAR_COLOR, sizeof(op_hdr) + sizeof(p_clear_color)}, {.index=0, .mask=15, .rgba={0, 1, 0, 1}}, {OP_END, sizeof(op_hdr)}};
++        mtl_exec((const uint8_t *)&code);
++    } else if (mode == 2) { rp_end(); draw_(&draw, NULL); }
++    else if (mode == 3) {
++        prog_t writer = {.serial = 99820}; serial_put(writer.serial, barrier_writer);
++        S.prog = &writer; S.chmask.mask = UINT32_MAX; draw_(&draw, NULL); S.prog = &program;
++    }
++    struct { op_hdr h; int32_t bits, pad; op_hdr end; } barrier = {
++        {OP_BARRIER, 16}, NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_INVALIDATE_TEXTURE_BIT, 0, {OP_END, sizeof(op_hdr)}};
++    mtl_exec((const uint8_t *)&barrier);
++    S.chmask.mask = UINT32_MAX;
++    fb_prepare(pr);
++    CHECK(g_fb_n == 1, "feedback snapshot remains bound after the barrier");
++    CHECK(g_fb_count == copies + 2, "barrier refreshes the feedback snapshot");
++    readback(g_fb_use[0], result, 0);
++    CHECK(mtl_wait(mtl_sub_commit(), 5000000000ull), "barrier proof GPU submission completes");
++    CHECK(!mtl_last_commit_error(), "barrier proof has no GPU error");
++    pixels(result, 0, mode == 1 || mode == 3 ? (const uint8_t[]){0, 255, 0, 255} : (const uint8_t[]){255, 0, 0, 255}, "barrier snapshot contains the literal current color");
++    mtl_tex_release(&source);
++}
++// A later format view must preserve the frozen snapshot, even after the
++// attachment itself changed. Swizzling alone must not disable compression.
++static void view_case(NvProg *pr, id<MTLRenderPipelineState> pipeline) {
++    tex_t source, output; target(&source, 99880); id<MTLTexture> destination = target(&output, 99881);
++    int tid = 710; mtl_reg_tex(tid, &source, NULL);
++    NvShader *fs = pr->sh[1]; fs->rf.b[0].reg = 0;
++    id<MTLBuffer> result = [g_dev newBufferWithLength:3072 options:MTLResourceStorageModeShared]; res_add(result);
++    state_reset(); memset(&R, 0, sizeof R); mtl_sub_begin();
++    R.has_rt = 1; R.rt.n = 1; R.rt.color[0] = &source; S.tex[1][0] = tid;
++    clear(MTLClearColorMake(1, 0, 0, 1)); fb_prepare(pr);
++    CHECK(g_fb_n == 1, "view fixture has a production snapshot");
++    CHECK(!!(g_fb_use[0].usage & MTLTextureUsagePixelFormatView) == !pass_reuse_on(), "ordinary snapshot only requests shader-read usage");
++    id<MTLTexture> srgb = [g_fb_use[0] newTextureViewWithPixelFormat:MTLPixelFormatRGBA8Unorm_sRGB];
++    CHECK(srgb != nil, "linear/sRGB view works without general format-view usage");
++    clear(MTLClearColorMake(0, 1, 0, 1)); rp_end();
++    view_t swizzle = {.set_swizzle=1, .swz={NVN_SWZ_B, NVN_SWZ_G, NVN_SWZ_R, NVN_SWZ_A}};
++    mtl_reg_tex(tid + 1, &source, &swizzle); S.tex[1][0] = tid + 1;
++    fb_prepare(pr);
++    CHECK(!!(g_fb_use[0].usage & MTLTextureUsagePixelFormatView) == !pass_reuse_on(), "swizzled snapshot keeps minimal usage");
++    R.rt.color[0] = &output; sample(fs, pipeline); readback(destination, result, 0);
++    uint64_t copies = g_fb_count;
++    view_t reinterpret = {.set_format=1, .format=NVN_FORMAT_RGBA8UI};
++    mtl_reg_tex(tid + 2, &source, &reinterpret); R.rt.color[0] = &source; S.tex[1][0] = tid + 2;
++    fb_prepare(pr);
++    id<MTLTexture> integer = g_fb_n == 1 ? g_fb_use[0] : nil;
++    CHECK(integer && (integer.usage & MTLTextureUsagePixelFormatView), "required reinterpretation upgrades the cached snapshot");
++    CHECK(g_fb_count == copies + (pass_reuse_on() ? 1 : 0), "format-view usage upgrade is one copy, not a source refresh");
++    CHECK(integer.pixelFormat == MTLPixelFormatRGBA8Uint, "integer format view is supported after upgrade"); readback(integer, result, 1024);
++    g_fb_bar++; R.rt.color[0] = &source; S.tex[1][0] = tid;
++    fb_prepare(pr); readback(g_fb_use[0], result, 2048);
++    CHECK(mtl_wait(mtl_sub_commit(), 5000000000ull), "format-view GPU submission completes");
++    CHECK(!mtl_last_commit_error(), "format-view fixture has no GPU error");
++    pixels(result, 0, (const uint8_t[]){0, 0, 255, 255}, "swizzled shader reads the old red snapshot as blue");
++    pixels(result, 1024, (const uint8_t[]){255, 0, 0, 255}, "usage upgrade preserves red rather than recopying the green attachment");
++    pixels(result, 2048, (const uint8_t[]){0, 255, 0, 255}, "a real barrier refreshes to the green source");
++    mtl_tex_release(&source); mtl_tex_release(&output);
++}
+ int main(void) { @autoreleasepool {
++    const char *stats = getenv("DM_TEST_FEEDBACK_STATS");
++    if (stats && !strcmp(stats, "1")) return feedback_stats_check();
+     setenv("DM_NVN_TBDR", "0", 1);
+     mtl_init(); NSError *error = nil;
+     id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+         "vertex float4 v(uint i[[vertex_id]]) { return float4(i == 1 ? 3.0 : -1.0, i == 2 ? 3.0 : -1.0, 0, 1); }\n"
+         "struct A {texture2d<float, access::read> source[[id(0)]];};\n"
+         "fragment float4 f(float4 p[[position]], constant A&a[[buffer(0)]]) {return a.source.read(uint2(p.xy));}\n"
++        "fragment float4 green() {return float4(0,1,0,1);}\n"
+         options:nil error:&error];
+     CHECK(lib != nil, "synthetic shader compiles");
+     if (!lib) { fprintf(stderr, "%s\n", error.localizedDescription.UTF8String); return 1; }
+@@ -138,6 +259,13 @@
+     const int slots[] = {0, 128, 255};
+     for (int i = 0; i < 3; i++) slot_case(pr, pipeline, slots[i], i);
+     reuse_case(pr);
++    pr->sh[0] = [NvShader new]; pr->sh[0]->fn = [lib newFunctionWithName:@"v"];
++    pr->sh[1]->rf.color_known = 1; pr->sh[1]->rf.color_mask = 1;
++    barrier_writer = [NvProg new]; barrier_writer->sh[0] = pr->sh[0]; barrier_writer->sh[1] = [NvShader new];
++    barrier_writer->sh[1]->fn = [lib newFunctionWithName:@"green"]; barrier_writer->sh[1]->stage = 1;
++    barrier_writer->sh[1]->rf.color_known = 1; barrier_writer->sh[1]->rf.color_mask = 1;
++    for (int mode = 0; mode < 4; mode++) barrier_case(pr, mode);
++    view_case(pr, pipeline);
+     printf("feedback snapshot: %d checks, %d failed\n", checks, failed);
+     return failed != 0;
+ } }
+diff --git a/dm/gfx/tests/t_rt_range.m b/dm/gfx/tests/t_rt_range.m
+--- a/dm/gfx/tests/t_rt_range.m
++++ b/dm/gfx/tests/t_rt_range.m
+@@ -5,7 +5,7 @@
+ module_t *g_mod;int g_nmod;
+ void svc_thread_dump(void){}
+ uint64_t now_ns(void){return bp_now();}
+-static int cases,bad,enabled,small_depth,force_invalid,sample_attachment,both_flags;
++static int cases,bad,enabled,small_depth,force_invalid,sample_attachment,both_flags,same_target,registry_change;
+ #define E(n,w,a) do{uint64_t actual=(a),want=(w);cases++;printf("%s expected %llu → got %llu\n",n,(unsigned long long)want,(unsigned long long)actual);bad+=want!=actual;}while(0)
+ typedef struct{uint8_t b[8192];size_t n;} code;
+ static void emit(code *c,int op,const void *p,size_t n){size_t z=(8+n+7)&~7ull;op_hdr h={op,(uint32_t)z};memcpy(c->b+c->n,&h,8);if(n)memcpy(c->b+c->n+8,p,n);c->n+=z;}
+@@ -21,7 +21,7 @@
+ static void rr_read_planes(id<MTLBuffer> __strong *b){id<MTLTexture> t=tex_mtl(&color),d=tex_mtl(&depth);[blit()copyFromTexture:t sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)sourceSize:MTLSizeMake(8,8,1)toBuffer:b[0]destinationOffset:0 destinationBytesPerRow:32 destinationBytesPerImage:256];
+  [blit()copyFromTexture:d sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)sourceSize:MTLSizeMake(8,8,1)toBuffer:b[1]destinationOffset:0 destinationBytesPerRow:32 destinationBytesPerImage:256 options:MTLBlitOptionDepthFromDepthStencil];
+  [blit()copyFromTexture:d sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)sourceSize:MTLSizeMake(8,8,1)toBuffer:b[2]destinationOffset:0 destinationBytesPerRow:8 destinationBytesPerImage:64 options:MTLBlitOptionStencilFromDepthStencil];}
+-int main(int argc,char **argv){@autoreleasepool{enabled=1;for(int i=1;i<argc;i++){if(!strcmp(argv[i],"--disabled"))enabled=0;else if(!strcmp(argv[i],"--small-depth"))small_depth=1;else if(!strcmp(argv[i],"--force-invalid"))force_invalid=1;else if(!strcmp(argv[i],"--sample-attachment"))sample_attachment=1;else if(!strcmp(argv[i],"--both-flags"))both_flags=1;}setenv("DM_NVN_TBDR","1",1);   /* the depth-only mode and the store lookahead need the TBDR optimizations, off by default since Mario */ if(enabled)setenv("DM_NVN_RT_RANGE","1",1);else unsetenv("DM_NVN_RT_RANGE");if(both_flags)setenv("DM_NVN_VIEW_CONTINUE","1",1);else unsetenv("DM_NVN_VIEW_CONTINUE");mtl_init();NSError *err=nil;
++int main(int argc,char **argv){@autoreleasepool{enabled=1;for(int i=1;i<argc;i++){if(!strcmp(argv[i],"--disabled"))enabled=0;else if(!strcmp(argv[i],"--small-depth"))small_depth=1;else if(!strcmp(argv[i],"--force-invalid"))force_invalid=1;else if(!strcmp(argv[i],"--sample-attachment"))sample_attachment=1;else if(!strcmp(argv[i],"--both-flags"))both_flags=1;else if(!strcmp(argv[i],"--same-target"))same_target=1;else if(!strcmp(argv[i],"--registry-change"))registry_change=1;}setenv("DM_NVN_TBDR",same_target?"0":"1",1);   /* the depth-only mode and the store lookahead need the TBDR optimizations, off by default since Mario */ if(enabled)setenv("DM_NVN_RT_RANGE","1",1);else unsetenv("DM_NVN_RT_RANGE");if(both_flags)setenv("DM_NVN_VIEW_CONTINUE","1",1);else unsetenv("DM_NVN_VIEW_CONTINUE");mtl_init();NSError *err=nil;
+  id<MTLLibrary> lib=[g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;vertex float4 v(uint n[[vertex_id]]){float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};return float4(p[n],.5,1);}\nfragment float4 r(){return float4(1,0,0,1);}\nfragment float4 g(){return float4(0,1,0,0);}struct A{texture2d<float> t[[id(0)]];};fragment float4 s(constant A&a[[buffer(0)]]){return a.t.read(uint2(0));}\n"options:nil error:&err];if(!lib)abort();
+  for(int i=0;i<2;i++){NvProg *p=[NvProg new];p->sh[0]=[NvShader new];p->sh[0]->fn=[lib newFunctionWithName:@"v"];p->sh[1]=[NvShader new];p->sh[1]->fn=[lib newFunctionWithName:i?(sample_attachment?@"s":@"g"):@"r"];p->sh[1]->stage=1;p->sh[1]->rf.color_mask=1;if(i&&sample_attachment){p->sh[1]->rf.nb=1;p->sh[1]->rf.b[0]=(nvn_rbind){.kind=NVN_RB_TEX,.dtt=MTLTextureType2D};p->sh[1]->ae=[p->sh[1]->fn newArgumentEncoderWithBufferIndex:0];}
+ #ifdef NVN_RT_RANGE_RO_IMPL
+@@ -31,21 +31,22 @@
+  color.d.width=color.d.height=depth.d.width=depth.d.height=8;color.d.depth=color.d.samples=depth.d.depth=depth.d.samples=1;color.d.levels=4;depth.d.levels=small_depth?2:1;color.d.target=depth.d.target=NVN_TEXTURE_TARGET_2D;color.d.format=NVN_FORMAT_RGBA8;depth.d.format=NVN_FORMAT_DEPTH32F_STENCIL8;
+  (void)tex_mtl(&color);(void)tex_mtl(&depth);if(sample_attachment){view_t v={.set_levels=1,.base_level=1,.nlevels=1};mtl_reg_tex(1000,&color,&v);}
+  uint16_t *ix;posix_memalign((void **)&ix,getpagesize(),getpagesize());for(int i=0;i<120;i++)ix[i]=i%3;mtl_pool_add(ix,getpagesize());
+- code first={0},second={0};p_set_rt a=rt(4),b=rt(1);emit(&first,OP_SET_RT,&a,sizeof a);ds_st ds={.dt=1,.df=NVN_DEPTH_FUNC_LESS};st(&first,5,&ds,sizeof ds);
++ code first={0},second={0};p_set_rt a=rt(4),b=rt(same_target?4:1);emit(&first,OP_SET_RT,&a,sizeof a);ds_st ds={.dt=1,.df=NVN_DEPTH_FUNC_LESS};st(&first,5,&ds,sizeof ds);
+  color_st col={0,NVN_LOGIC_OP_COPY,NVN_ALPHA_FUNC_ALWAYS};st(&first,1,&col,sizeof col);p_bind_program pr={&pg[0],3};emit(&first,OP_BIND_PROGRAM,&pr,sizeof pr);uint64_t reset=NVN_COUNTER_TYPE_SAMPLES_PASSED;emit(&first,OP_RESET_COUNTER,&reset,8);p_draw dw={NVN_DRAW_PRIMITIVE_TRIANGLES,0,3};emit(&first,OP_DRAW,&dw,sizeof dw);emit(&first,OP_END,NULL,0);
+  emit(&second,OP_RESET_COUNTER,&reset,8);emit(&second,OP_SET_RT,&b,sizeof b);if(small_depth){ds_st off={.df=NVN_DEPTH_FUNC_ALWAYS};st(&second,5,&off,sizeof off);}pr.prog=&pg[1];emit(&second,OP_BIND_PROGRAM,&pr,sizeof pr);if(sample_attachment){p_bind_handles h={.stage=1,.first=0,.n=1};h.h[0]=1000;emit(&second,OP_BIND_TEX,&h,sizeof h);}col.blend_en=1;st(&second,1,&col,sizeof col);blend_st blend={0,NVN_BLEND_FUNC_ONE,NVN_BLEND_FUNC_ONE,NVN_BLEND_FUNC_ONE,NVN_BLEND_FUNC_ZERO,NVN_BLEND_EQUATION_ADD,NVN_BLEND_EQUATION_ADD};st(&second,0,&blend,sizeof blend);p_draw_idx di={.prim=NVN_DRAW_PRIMITIVE_TRIANGLES,.count=120,.itype=1,.ibuf=(uint64_t)ix,.instances=1};emit(&second,OP_DRAW_IDX,&di,sizeof di);emit(&second,OP_END,NULL,0);
+  id<MTLBuffer> buffers[2][3];for(int m=0;m<2;m++)for(int j=0;j<3;j++)buffers[m][j]=[g_dev newBufferWithLength:j==2?64:256 options:MTLResourceStorageModeShared];uint64_t passes[2],bytes[2],q[2][2]={{0}};
+  mtl_sub_begin();
+- for(int m=0;m<2;m++){state_reset();memset(&R,0,sizeof R);vis_clear();g_vis_on=g_vis_counting=0;seed();uint64_t p=g_stat_pass,l=g_bw_load,s=g_bw_store,draws=g_stat_draw;mtl_exec(first.b);E("first draw in depth read-only mode",4,g_enc_mode);if(!m)rp_end();else if(force_invalid)R.rt.cview[0].nlevels=1; // negative control: wrongly assume the attachment range/target is always equivalent
++ for(int m=0;m<2;m++){state_reset();memset(&R,0,sizeof R);vis_clear();g_vis_on=g_vis_counting=0;seed();uint64_t p=g_stat_pass,l=g_bw_load,s=g_bw_store,draws=g_stat_draw;mtl_exec(first.b);E("first draw keeps required attachment planes",same_target?0:4,g_enc_mode);if(!m)rp_end();else if(force_invalid)R.rt.cview[0].nlevels=1; // negative control: wrongly assume the attachment range/target is always equivalent
++ if(registry_change){uint64_t gen=g_reg_gen;mtl_reg_tex(1001+m,&color,NULL);E("texture registration actually changes the resource generation",1,g_reg_gen>gen);}
+  mtl_exec(second.b);rp_end();passes[m]=g_stat_pass-p;bytes[m]=g_bw_load-l+g_bw_store-s;E("real draw count unchanged",2,g_stat_draw-draws);post((post_op){3,NULL,0,0,(uint64_t)q[m],(uint32_t)reset,vis_snapshot()});rr_read_planes(buffers[m]);if(g_blit){[g_blit endEncoding];g_blit=nil;}}
+  int done=mtl_wait(mtl_sub_commit(),5000000000ull);E("same texture, same CB done",1,done);if(!done)abort();E("no error in commit feedback",0,mtl_last_commit_error());
+  uint8_t yellow[4]={255,255,0,0},green[4]={0,255,0,0}; // alpha is given 0 by the second draw's ONE/ ZERO; integer closed-form RGB yellow.
+  for(int m=0;m<2;m++){unsigned bc=0,bd=0,bs=0;for(int i=0;i<64;i++){bc+=memcmp((uint8_t *)buffers[m][0].contents+4*i,small_depth && (i%8>=4||i/8>=4)?green:yellow,4)!=0;bd+=((float *)buffers[m][1].contents)[i]!=.75f;bs+=((uint8_t *)buffers[m][2].contents)[i]!=0x2d;}E("each 64 texels hand-computed yellow",0,bc);E("depth .75 seed kept",0,bd);E("stencil 0x2d seed kept",0,bs);E("samples after Reset, 120 indices / 40 triangles",2560,q[m][0]);}
+  E("three planes original vs candidate byte for byte",0,memcmp(buffers[0][0].contents,buffers[1][0].contents,256)||memcmp(buffers[0][1].contents,buffers[1][1].contents,256)||memcmp(buffers[0][2].contents,buffers[1][2].contents,64));
+- E("original guard: two passes",2,passes[0]);E("candidate one pass / default two passes",enabled&&!small_depth&&!sample_attachment?1:2,passes[1]);{ // DontCare (not stored if this pass did not write it): both passes' depth state enables only test, not write, so each pass saves one depth-stencil store = 8×8×5 bytes (Depth32F_S8 attachment model, 5 B/pixel)
+-   const char *u=getenv("DM_NVN_UNWRITTEN_DC"); int udc=!(u&&!strcmp(u,"0")); unsigned dsb=udc&&!small_depth&&!sample_attachment?8*8*5:0;
+-   E(udc?"original attachment model 2048−2×320 (DontCare)":"original attachment model 2048",(small_depth?1152:2048)-2*dsb,bytes[0]);
+-   E(udc?"candidate attachment model 1024−320 (DontCare)":"candidate attachment model 1024 / default 2048",(small_depth?1152:enabled&&!sample_attachment?1024:2048)-(enabled&&!sample_attachment?1:2)*dsb,bytes[1]); }
++ E("original guard: two passes",2,passes[0]);E("candidate one pass / default two passes",(same_target?pass_reuse_on():enabled)&&!small_depth&&!sample_attachment&&!registry_change?1:2,passes[1]);{ // DontCare (not stored if this pass did not write it): both passes' depth state enables only test, not write, so each pass saves one depth-stencil store = 8×8×5 bytes (Depth32F_S8 attachment model, 5 B/pixel)
++   const char *u=getenv("DM_NVN_UNWRITTEN_DC"); int udc=!(u&&!strcmp(u,"0")); unsigned dsb=udc&&!small_depth&&(same_target||!sample_attachment)?8*8*5:0;
++   E(udc?"original attachment model 2048−2×320 (DontCare)":"original attachment model 2048",(same_target?2304:small_depth?1152:2048)-2*dsb,bytes[0]);
++   E(udc?"candidate attachment model 1024−320 (DontCare)":"candidate attachment model 1024 / default 2048",(same_target?(sample_attachment||registry_change||!pass_reuse_on()?2304:1152):small_depth?1152:enabled&&!sample_attachment?1024:2048)-((same_target?pass_reuse_on():enabled)&&!sample_attachment&&!registry_change?1:2)*dsb,bytes[1]); }
+  const char *dir=getenv("DM_GFX_FIXTURE_OUT");if(dir){char p[1024];for(int m=0;m<2;m++)for(int j=0;j<3;j++){snprintf(p,sizeof p,"%s/%s_%s.raw",dir,m?"candidate":"reference",j==0?"color":j==1?"depth":"stencil");FILE *f=fopen(p,"wb");if(!f||fwrite(buffers[m][j].contents,1,j==2?64:256,f)!=(j==2?64:256))abort();fclose(f);}}
+  mtl_pool_del(ix);free(ix);printf("RT_RANGE_GPU cases=%d failed=%d\n",cases,bad);return bad!=0;
+ }}
+diff --git a/dm/gfx/tests/t_unwritten_store.m b/dm/gfx/tests/t_unwritten_store.m
+--- a/dm/gfx/tests/t_unwritten_store.m
++++ b/dm/gfx/tests/t_unwritten_store.m
+@@ -12,6 +12,7 @@
+ static tex_t color = {.magic=MAGIC('T','E','X',0), .serial=99501};
+ static tex_t depth = {.magic=MAGIC('T','E','X',0), .serial=99502};
+ static prog_t program = {.serial=99503};
++static prog_t no_color_program = {.serial=99504};
+ static void seed(void) {
+     MTL4RenderPassDescriptor *p=[MTL4RenderPassDescriptor new];
+     p.colorAttachments[0].texture=tex_mtl(&color);
+@@ -29,6 +30,9 @@
+     static uint64_t frame; uint64_t started=bp_now(); mtl_set_frame(++frame);
+     g_udc_ab=enabled; g_udc_ab_on=0;
+     state_reset(); memset(&R,0,sizeof R); mtl_sub_begin(); seed();
++    S.chmask.mask = mode==7 || mode==10 ? 0 : UINT32_MAX;
++    NvProg *ordinary=serial_get(program.serial);
++    ordinary->sh[1]->rf.color_known=mode!=9;
+     S.ds=(ds_st){.dt=1,.dw=mode==1,.df=NVN_DEPTH_FUNC_LESS,.st=mode==2,
+         .sf_f=NVN_STENCIL_FUNC_ALWAYS,.sf_b=NVN_STENCIL_FUNC_ALWAYS,
+         .fail_f=NVN_STENCIL_OP_KEEP,.zfail_f=NVN_STENCIL_OP_KEEP,.zpass_f=NVN_STENCIL_OP_REPLACE,
+@@ -39,7 +43,7 @@
+     code.rt_h=(op_hdr){OP_SET_RT,sizeof(op_hdr)+sizeof(p_set_rt)};
+     code.rt=(p_set_rt){.n=1,.depth=&depth}; code.rt.color[0]=&color;
+     code.pr_h=(op_hdr){OP_BIND_PROGRAM,sizeof(op_hdr)+sizeof(p_bind_program)};
+-    code.pr=(p_bind_program){&program,3};
++    code.pr=(p_bind_program){mode==8 ? &no_color_program : &program,3};
+     code.draw_h=(op_hdr){OP_DRAW,sizeof(op_hdr)+sizeof(p_draw)};
+     code.draw=(p_draw){NVN_DRAW_PRIMITIVE_TRIANGLES,0,3}; code.end=(op_hdr){OP_END,sizeof(op_hdr)};
+     uint64_t before=g_udc_saved_bytes;
+@@ -49,12 +53,13 @@
+     }
+     for (unsigned i=0;i<repeats;i++) {
+     mtl_exec((const uint8_t *)&code);
+-    if (mode>=4) { // Unknown writable aliases must force stores, even with read-only depth state.
++    if (mode>=4 && mode<=6) { // Unknown writable aliases must force stores, even with read-only depth state.
+         NvProg *alias=[NvProg new]; alias->sh[1]=[NvShader new];
+         alias->sh[1]->rf.color_mask=1; alias->sh[1]->rf.nb=1;
+         int kinds[]={NVN_RB_IMG,NVN_RB_SBUFP,NVN_RB_SBUFU};
+-        alias->sh[1]->rf.b[0]=(nvn_rbind){.kind=kinds[mode-4],.rw=1}; udc_note_draw(alias);
++        alias->sh[1]->rf.b[0]=(nvn_rbind){.kind=kinds[mode-4],.rw=1}; udc_note_draw(alias,1);
+     }
++    if (mode==10) udc_note_draw(ordinary,0); // Remapped outputs keep the conservative write proof.
+     rp_end();
+     }
+     id<MTLBuffer> b[3]; b[0]=[g_dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
+@@ -74,25 +79,28 @@
+     color.d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D,.format=NVN_FORMAT_RGBA8,.width=width,.height=height,.depth=1,.levels=1,.samples=1};
+     depth.d=color.d; depth.d.format=NVN_FORMAT_DEPTH32F_STENCIL8;
+     NSError *error=nil;
+-    id<MTLLibrary> lib=[g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;vertex float4 v(uint n[[vertex_id]]){float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};return float4(p[n],.5,1);}\nfragment float4 f(){return float4(1,0,0,1);}" options:nil error:&error];
++    id<MTLLibrary> lib=[g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;vertex float4 v(uint n[[vertex_id]]){float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};return float4(p[n],.5,1);}\nfragment float4 f(){return float4(1,0,0,1);}\nfragment void no_color(){}" options:nil error:&error];
+     CHECK(lib!=nil,"literal test shaders compile"); if (!lib) return 1;
+     NvProg *pr=[NvProg new]; pr->sh[0]=[NvShader new]; pr->sh[1]=[NvShader new];
+     pr->sh[0]->fn=[lib newFunctionWithName:@"v"]; pr->sh[1]->fn=[lib newFunctionWithName:@"f"];
+     pr->sh[1]->stage=1; pr->sh[1]->rf.color_mask=1; serial_put(program.serial,pr);
+-    for (int case_id=0;case_id<(bench?12:7);case_id++) {
++    NvProg *empty=[NvProg new]; empty->sh[0]=pr->sh[0]; empty->sh[1]=[NvShader new];
++    empty->sh[1]->fn=[lib newFunctionWithName:@"no_color"]; empty->sh[1]->stage=1;
++    empty->sh[1]->rf.color_known=1; serial_put(no_color_program.serial,empty);
++    for (int case_id=0;case_id<(bench?12:11);case_id++) {
+         int mode=bench?0:case_id;
+         result off,on;
+         if(case_id&1) { on=run(1,mode); off=run(0,mode); }
+         else { off=run(0,mode); on=run(1,mode); }
+         CHECK(!memcmp(off.color,on.color,256)&&!memcmp(off.depth,on.depth,256)&&!memcmp(off.stencil,on.stencil,64),"store-all and elided planes match byte for byte");
+         int good=1; for(int i=0;i<64;i++) {
+-            uint8_t red[4]={255,0,0,255}; good &= !memcmp(on.color+4*i,red,4);
++            uint8_t want_color[4]={mode==7 || mode==8 || mode==10 ? 0 : 255,0,0,255}; good &= !memcmp(on.color+4*i,want_color,4);
+             good &= on.depth[i]==(mode==1?.5f:mode==3?.625f:.75f);
+             good &= on.stencil[i]==(mode==2?0x36:mode==3?0x63:0x2d);
+         }
+         CHECK(good,"all 64 pixels match hand-computed color/depth/stencil");
+         CHECK(off.saved==0,"disabled control always stores");
+-        uint64_t want=(uint64_t)width*height*repeats*(mode==0?5:mode==1?1:mode==2?4:0);
++        uint64_t want=(uint64_t)width*height*repeats*(mode==0 || mode==9 || mode==10 ? 5 : mode==1 ? 1 : mode==2 ? 4 : mode==7 || mode==8 ? (pass_reuse_on()?9:5) : 0);
+         CHECK(on.saved==want,"only provably unchanged planes skip their store");
+         printf("mode %d: saved %llu bytes, expected %llu\n",mode,(unsigned long long)on.saved,(unsigned long long)want);
+         if(bench) printf("BENCH trial %d off_gpu_ms %.6f on_gpu_ms %.6f off_wall_ms %.6f on_wall_ms %.6f saved_mb %.3f\n",case_id,off.gpu_ms,on.gpu_ms,off.wall_ms,on.wall_ms,on.saved/1e6);
+diff --git a/dm/ios/Sources/en.lproj/Localizable.strings b/dm/ios/Sources/en.lproj/Localizable.strings
+--- a/dm/ios/Sources/en.lproj/Localizable.strings
++++ b/dm/ios/Sources/en.lproj/Localizable.strings
+@@ -128,3 +128,5 @@
+ "Traditional Chinese" = "Traditional Chinese";
+ "Simplified Chinese" = "Simplified Chinese";
+ "Brazilian Portuguese" = "Brazilian Portuguese";
++"Memory transfer optimization" = "Memory transfer optimization";
++"Reduces GPU image reads and writes. Turn off if rendering errors appear. Applies when you press Play." = "Reduces GPU image reads and writes. Turn off if rendering errors appear. Applies when you press Play.";
+diff --git a/dm/ios/Sources/zh-Hans.lproj/Localizable.strings b/dm/ios/Sources/zh-Hans.lproj/Localizable.strings
+--- a/dm/ios/Sources/zh-Hans.lproj/Localizable.strings
++++ b/dm/ios/Sources/zh-Hans.lproj/Localizable.strings
+@@ -128,3 +128,5 @@
+ "Traditional Chinese" = "繁体中文";
+ "Simplified Chinese" = "简体中文";
+ "Brazilian Portuguese" = "巴西葡萄牙语";
++"Memory transfer optimization" = "\U5185\U5B58\U4F20\U8F93\U4F18\U5316";
++"Reduces GPU image reads and writes. Turn off if rendering errors appear. Applies when you press Play." = "\U51CF\U5C11 GPU \U56FE\U50CF\U8BFB\U5199\U3002\U51FA\U73B0\U753B\U9762\U9519\U8BEF\U65F6\U53EF\U5173\U95ED\U3002\U70B9\U51FB\U5F00\U59CB\U6E38\U620F\U540E\U751F\U6548\U3002";
+diff --git a/dm/tools/tests/test_launcher_settings.py b/dm/tools/tests/test_launcher_settings.py
+--- a/dm/tools/tests/test_launcher_settings.py
++++ b/dm/tools/tests/test_launcher_settings.py
+@@ -15,7 +15,7 @@
+ spec.loader.exec_module(settings)
+ 
+ BOTW, WONDER = '01007EF00011E000', '010015100B514000'
+-PERFORMANCE_NVN = ['DM_PRESENT_SNAP', 'DM_PSO_MTL4', 'DM_PSO_PREBUILD', 'DM_NVN_ENC_THREAD', 'DM_FPS_HOLD', 'DM_METAL_HUD']
++PERFORMANCE_NVN = ['DM_NVN_PASS_REUSE', 'DM_PRESENT_SNAP', 'DM_PSO_MTL4', 'DM_PSO_PREBUILD', 'DM_NVN_ENC_THREAD', 'DM_FPS_HOLD', 'DM_METAL_HUD']
+ 
+ 
+ def build(gid, api, platform=None):
+@@ -26,6 +26,13 @@
+ 
+ 
+ class LauncherSettingsTests(unittest.TestCase):
++    def test_memory_transfer_optimization_has_an_explicit_nv_only_fallback(self):
++        for platform in ('ios', 'mac'):
++            row = build(BOTW, 'nvn', platform)['DM_NVN_PASS_REUSE']
++            self.assertEqual((row['kind'], row['on'], row['off'], row['default']), ('toggle', '1', '0', '1'))
++        for gid, api in [('0100535012974000', 'vulkan'), ('010014E00DB56000', 'gl')]:
++            self.assertNotIn('DM_NVN_PASS_REUSE', build(gid, api))
++
+     def test_upscaling_is_opt_in_for_every_graphics_api(self):
+         for api, gid in [('nvn', BOTW), ('vulkan', '0100535012974000'), ('gl', '010014E00DB56000')]:
+             with self.subTest(api=api):
+diff --git a/docs/agents/symptoms.md b/docs/agents/symptoms.md
+--- a/docs/agents/symptoms.md
++++ b/docs/agents/symptoms.md
+@@ -527,6 +527,7 @@
+ - a jump to address 0 right after `glGetFloatv(0xb12)` (`lr=main+0x2d58c4`). → [Which GL functions a game calls](../reference/rendering.md#which-gl-functions-a-game-calls)
+ - in a capture run every program links with no uniforms; the game's first `Shader:send` raises a Lua error and, on the Switch, its error handler quits (Any Lua error quits a LÖVE game). → [GL shaders put together at run time and captured](../reference/rendering.md#gl-shaders-put-together-at-run-time-and-captured)
+ - read-only depth/stencil attachments are written back after every pass, and the periodic unwritten-store savings counter remains zero with the default configuration. → [Unwritten attachment stores without lookahead](../reference/rendering.md#unwritten-attachment-stores-without-lookahead)
++- repeated identical render targets end render passes; ordinary feedback snapshots request arbitrary pixel-format views. → [Render-pass reuse and compression without removing feedback copies](../reference/rendering.md#render-pass-reuse-and-compression-without-removing-feedback-copies)
+ 
+ ## Shaders
+ 
+diff --git a/docs/env_switches.tsv b/docs/env_switches.tsv
+--- a/docs/env_switches.tsv
++++ b/docs/env_switches.tsv
+@@ -42,6 +42,8 @@
+ DM_BOTW_PAD_ZR_Y	player	BOTW touch ZR button vertical offset as a fraction of layout canvas height.
+ DM_BOTW_UI_AUDIT	diagnostic	Append passive BOTW native screen and touch-target evidence as JSONL to this file (exact supported build, touch mode only).
+ DM_BUNDLE_ID	switch	Overrides the iOS app's bundle ID in `build_ipa.sh` (default `org.nxnative.<title ID in lowercase>`)
++DM_CI_LEGACY_METAL_COMPILER_ROOT	path	Previous CI Metal toolchain root for migrating only an identical legacy shader compiler fingerprint; ignored outside explicit CI reuse.
++DM_CI_RECLAIM_INPUTS	switch	`1` releases downloaded CI container copies only after all extraction succeeds and only inside the validated runner input directory.
+ DM_COPY_GAME_RESOURCES	switch	`NO` skips the Xcode build phase that copies the game's resources into the app (`stage_resources.sh`, on by default); `build_ipa.sh` sets it for its unsigned build, which packs them itself
+ DM_COPY_ROMFS	switch	`NO` keeps the game files out of the app, in the Xcode build phase (`stage_resources.sh`) and in the unsigned IPA of `build_ipa.sh` (on by default): `main.m` takes the validated `Documents/romfs.img` copied by `scripts/push_romfs.sh`, then a `Documents/romfs` folder; the build writes the image's identity as `romfs.id` into the app, and `main.m` uses only a matching image (`--romfs separate` of the NSP script sets this)
+ DM_CTL	diagnostic	`=<file>` (Mac): the host polls the file every 100 ms and runs each appended line: button presses, `shot`, `passdump`, `texdump`, `env KEY=VALUE`, `peek`, `memdump`, `drag` and more
+@@ -165,6 +167,7 @@
+ DM_NVN_PASSDUMP_ALL	diagnostic	`=1` makes `DM_NVN_PASSDUMP` record every draw and binding change, not only the first per pass and stage, including copies and inline uniform updates
+ DM_NVN_PASSGPU	diagnostic	`=<file>` writes the GPU time of each render and compute pass from stage-boundary timestamp counters (off under Metal 4); also gives each dispatch its own encoder
+ DM_NVN_PASSGPU_SERIAL	diagnostic	`=1` makes each encoder on the main command buffer wait until all earlier work has finished, so `DM_NVN_PASSGPU` times read each pass's exclusive time (totals read high)
++DM_NVN_PASS_REUSE	diagnostic	`0` restores the former identical-target split, conservative color-write policies and always-format-view snapshot allocations; on by default with local write proofs and required-only snapshot format-view usage, independent of TBDR lookahead; `ab` follows the existing `DM_AB` phases; allocation-policy comparisons need fresh processes because cached allocations retain their capabilities
+ DM_NVN_PREDICT	switch	`0` turns off the parallel precompile look-ahead: a pipeline miss compiles only the pipeline it needs
+ DM_NVN_PROF	diagnostic	`=1` wraps the implemented NVN functions in a timing wrapper and collects the time each takes during recording
+ DM_NVN_PROGTRACE	diagnostic	`=<vertex keys,...>` logs matching ProgramSetShaders calls and their guest backtraces
+@@ -182,7 +185,7 @@
+ DM_NVN_STORAGE_FIRST_USE	switch	`0` keeps a sampled block-compressed texture in a CPU-writable pool to the one-time fill instead of making it CPU-written when its storage holds data at first use (on by default; `tex_cpu_content`), to measure it
+ DM_NVN_T2T_FROM	diagnostic	`=<frame>`: `DM_NVN_T2T_TRACE` records copies only from that frame on (default 0)
+ DM_NVN_T2T_TRACE	diagnostic	`=<W>x<H>:<file>`: after each copy into an RGBA16F texture of that size, copies the result into a trace buffer on the GPU timeline; 240 entries are written to the file
+-DM_NVN_TBDR	switch	`=1` turns on the replay's TBDR pass optimizations (store / load elision, pass merging, same-target continuation); off by default since bindless textures defeat their read inference
++DM_NVN_TBDR	switch	`=1` turns on the replay's experimental TBDR lookahead (store / load elision and pass merging); off by default since bindless textures defeat its read inference; exact-target continuation with local proofs runs independently
+ DM_NVN_TEXCPU	diagnostic	`=1` logs non-packaged (non-swizzled) textures in CPU-visible pools
+ DM_NVN_TEXDUMP	diagnostic	`=<frame>:<path>`, `size=<W>x<H>:<path>` or `layers=<n>:<path>`: saves every colour render target of that frame as PNG (`%d` = serial × 100 + layer × 10 + level)
+ DM_NVN_TEXINFO	diagnostic	`=<W>x<H>` logs storage and description of every texture of that size on first use, registration and initialization (pool, flags, packaged, non-zero bytes, swizzles)
+@@ -313,6 +316,7 @@
+ DM_TEST_ARCHIVE_MIXED	test	Mix a newly compiled shader function with compacted bases in the archive restart fixture
+ DM_TEST_BORDER	test	Path to the native t_border executable that test_dmsh_border.py runs a rewritten shader through on the GPU (`make check_t_border` sets it)
+ DM_TEST_BUILD	test	Build folder of `dm/host/tests` whose `t_svc_memory` `test_memory_profile.py` runs (default `build`; `make asan` sets `build/asan`)
++DM_TEST_FEEDBACK_STATS	test	`1` runs concurrent encode/present feedback-counter checks without creating a GPU device, including the ThreadSanitizer target.
+ DM_TEST_FS_FAIL	diagnostic	`=write:<n>[:<errno>]` makes the nth save write fail with that errno (default ENOSPC), which refuses the save transaction's commit
+ DM_TEST_FS_FAILAT	diagnostic	`=<point>[:<count>][,…]` makes steps of the save transaction (`mountclone`, `reclone`, `guestname`, `renameback`) fail with ENOSPC
+ DM_TEST_GEOMETRY	test	Path of the native `t_geometry` executable; `test_dmsh_geometry.py` runs its native geometry emitter checks only when it is set
+diff --git a/docs/reference/rendering.md b/docs/reference/rendering.md
+--- a/docs/reference/rendering.md
++++ b/docs/reference/rendering.md
+@@ -1119,3 +1119,11 @@
+ - **Fix:** collect per-pass write facts independently of the lookahead switch and omit only stores of attachments that were loaded and provably unchanged. Clears, depth writes, stencil writes and possible writable image/atomic/storage aliases retain their stores. Lookahead, pass merging and cross-submission invalidation remain disabled. `DM_NVN_UNWRITTEN_DC=0` restores store-all behavior.
+ - **Check:** `make -C dm/gfx/tests GAME=<id> check_t_unwritten_store` performs real GPU readback against a store-all control and literal color/depth/stencil values, with lookahead disabled. It covers read-only depth/stencil, depth writes, stencil writes, pending clears, and writable images (including native image atomics) and both storage-buffer binding forms. `t_unwritten_store --bench` runs a synthetic 32-pass 1080p workload with balanced on/off order; it is not a game FPS measurement.
+ - **Found on:** [NieR:Automata US 1.0.3](../../dm/games/010056B015FE8000/README.md#factory-combat-capture-and-9s-texture-follow-up), during iPhone factory-combat performance investigation. The change passes the GPU proof and rendering regressions on Mac; iPhone gameplay benefit remains to be measured.
++
++### Render-pass reuse and compression without removing feedback copies
++
++- **Symptom:** repeated identical render targets end render passes; ordinary feedback snapshots request arbitrary pixel-format views.
++- **Cause:** exact-target continuation was coupled to speculative lookahead; unconditional PixelFormatView usage disables lossless compression on supported Apple GPUs.
++- **Fix:** continue identical full-attachment passes only while resource generations and CPU-write epochs match; preserve clear, shader-write and attachment-read boundaries. Ordinary color writes require both enabled channels and a real shader output. Request format-view usage only for actual reinterpretation, upgrading from the retained snapshot rather than a newer attachment. `DM_NVN_PASS_REUSE=0` restores the prior policy. Diagnostic counters are atomic across encoding and presentation.
++- **Check:** the backport includes the upstream feedback readback, exact-target, registry-change and unwritten-store regressions. Build and device results are recorded separately; source integration is not a sustained-FPS result.
++- **Found on:** [Breath of the Wild](../../dm/games/01007EF00011E000/README.md#render-pass-backport-2026-11-01), following the reported M3 iPad frame drop.
+diff --git a/docs/settings.md b/docs/settings.md
+--- a/docs/settings.md
++++ b/docs/settings.md
+@@ -107,6 +107,15 @@
+ ## Performance
+ 
+ These settings change how the app hands frames to the screen and how it prepares the GPU's work. The game's tested defaults are a good start; change them when a game stutters, runs hot, or you want less latency.
++
++### Memory transfer optimization
++
++NVN games only; enabled by default. It continues compatible render passes,
++avoids stores of unchanged color attachments, and lets ordinary feedback
++snapshots remain eligible for lossless compression. Required feedback
++copies and their barrier/submission invalidation remain. Turn it off to
++compare the previous policy or if rendering errors appear; Play applies
++and saves the choice. Existing environment overrides take priority.
+ 
+ ### Frame buffering
+ 

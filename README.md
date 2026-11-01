@@ -30,6 +30,8 @@ The complete IPA workflow builds an unsigned IPA for reinstall using the owner's
 
 ## Complete IPA build and pickup
 
+The 2026-11-01 render backport carries Touch the Wild's guarded identical-target continuation and compression-eligible feedback snapshots. Its **Memory transfer optimization** setting defaults on and can restore the previous policy for a fresh-process comparison. Necessary feedback copies remain. The original shader chain and `.nxrom` identity are retained; sustained iPad FPS requires device comparison. The build records both upstream commit IDs and exact source hashes in `render_pass_patch` provenance.
+
 Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its default `nxrom` mode uses the original in-app importer: it writes an app-only `out/BOTW-iPad-Touch.ipa` and a separate `out/BOTW-iPad-Touch.nxrom` containing the game/update/DLC. The two outputs are published as independent authenticated artifacts, so fetching an app update does not fetch the large data package. `bundle` still builds a complete IPA, and `separate` is the manual RomFS-transfer mode. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
 
 Install the app IPA, open it and select its matching `.nxrom` once. The importer verifies and stores the data in the app's Documents directory. Later app builds with the same data SHA256 use the existing installation; settings or app-code changes do not require another data download. Install an update over the existing app with the same bundle identifier to preserve Documents. Game or DLC content changes produce a new data identity and require the matching package.

@@ -14,5 +14,14 @@
   },
   "game_profile": "01007EF00011E000",
   "plugin_version": "0.3.2",
-  "shader_chain": "715bb867230c"
+  "shader_chain": "715bb867230c",
+  "render_pass_backport": {
+    "repository": "devinhurry/touch-the-wild",
+    "commits": [
+      "1983d2d3cc441e5f74fe59c69282e0b7281f389e",
+      "2004eb4334261db889b49cb3d5fca588e8208091"
+    ],
+    "patch": "touchwild-render-pass-20261101.patch",
+    "shader_chain": "715bb867230c"
+  }
 }

@@ -146,6 +146,12 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_ipa_ci_stage.py -v
       - name: Host and real UIKit handler regressions without game files
         run: python3 scripts/check_touch_controls.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/touch-tests"
+      - name: Render backport compilation, concurrency and available GPU regressions
+        run: python3 scripts/check_render_pass.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/render-tests"
+      - name: Reviewed render backport source and shader-cache compatibility
+        env:
+          BOTW_CI_STAGE: ${{ runner.temp }}/stage
+        run: python3 -m unittest discover -s tests -p test_render_pass_backport.py -v
       - name: Original game-data importer and split distribution regressions
         env:
           BOTW_CI_STAGE: ${{ runner.temp }}/stage
@@ -165,6 +171,8 @@ jobs:
             ${{ runner.temp }}/touch-tests/uikit/*.txt
             ${{ runner.temp }}/touch-tests/uikit/*.ips
             ${{ runner.temp }}/touch-tests/uikit/*.crash
+            ${{ runner.temp }}/render-tests/*.log
+            ${{ runner.temp }}/render-tests/report.json
           if-no-files-found: warn
           retention-days: 14
 
