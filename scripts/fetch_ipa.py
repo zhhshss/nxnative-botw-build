@@ -332,7 +332,7 @@ def main() -> None:
         raise ValueError("expected one unexpired encrypted IPA artifact")
     artifact = matches[0]
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    separate = "external game data:" in log or "graphics package:" in log
+    separate = any(marker in log for marker in ("external game data:", "graphics package:", "graphics ZIP:"))
     output = args.output_dir / (APP_NAME if separate else NAME)
     current = output.exists() and digest_file(output) == expected
     if output.exists() and not current and not separate:

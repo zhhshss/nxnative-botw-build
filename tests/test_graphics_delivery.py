@@ -78,6 +78,9 @@ class GraphicsDeliveryTests(unittest.TestCase):
                 fetch_ipa.validate_graphics_package(self.package, required)
 
     def test_existing_compatible_graphics_and_app_reuse_app_only_publication(self):
+        complete = self.root / fetch_ipa.NAME
+        original_complete = b"preserved original complete IPA"
+        complete.write_bytes(original_complete)
         app = self.root / fetch_ipa.APP_NAME
         with zipfile.ZipFile(app, "w") as archive:
             archive.writestr("Payload/DmIOS.app/Info.plist", b"plist")
@@ -86,16 +89,21 @@ class GraphicsDeliveryTests(unittest.TestCase):
         graphics_payload = self.package_bytes()
         graphics = self.root / fetch_ipa.GRAPHICS_NAME; graphics.write_bytes(graphics_payload)
         expected = hashlib.sha256(app.read_bytes()).hexdigest()
-        log = f"graphics package: /out/graphics.v1.zip\n{expected}  /out/{fetch_ipa.NAME}\n"
         run = {"status": "completed", "conclusion": "success", "headSha": "source", "url": "https://example/run",
                "jobs": [{"name": "ipa / ipa", "conclusion": "success", "databaseId": 1}]}
         artifacts = {"artifacts": [{"name": "botw-ipa-encrypted", "expired": False, "id": 2, "size_in_bytes": 1000}]}
         arguments = ["fetch_ipa.py", "1", "--output-dir", str(self.root), "--password-file", str(self.root / "unused"), "--with-graphics"]
-        with mock.patch.object(sys, "argv", arguments), mock.patch.object(fetch_ipa, "gh_json", side_effect=[run, artifacts]), \
-                mock.patch.object(fetch_ipa.subprocess, "check_output", return_value=log), \
-                mock.patch.object(fetch_ipa, "artifact_download_url", side_effect=AssertionError("no repeated download")):
-            fetch_ipa.main()
-        self.assertEqual(graphics.read_bytes(), graphics_payload)
+        for marker in ("graphics package:", "graphics ZIP:"):
+            # The current NSP wrapper emits graphics ZIP, as recorded by the real cold build.
+            log = (f"[19:42:32] {marker} /out/BOTW-iPad-Touch.graphics.v1.zip (Import shaders in the launcher)\n"
+                   f"{expected}  /out/{fetch_ipa.NAME}\n")
+            with self.subTest(marker=marker), mock.patch.object(sys, "argv", arguments), \
+                    mock.patch.object(fetch_ipa, "gh_json", side_effect=[run, artifacts]), \
+                    mock.patch.object(fetch_ipa.subprocess, "check_output", return_value=log), \
+                    mock.patch.object(fetch_ipa, "artifact_download_url", side_effect=AssertionError("no repeated download")):
+                fetch_ipa.main()
+                self.assertEqual(graphics.read_bytes(), graphics_payload)
+                self.assertEqual(complete.read_bytes(), original_complete)
 
 
 if __name__ == "__main__":
