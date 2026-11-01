@@ -1,7 +1,7 @@
 {
   "source_commit": "c671dd0b27f4ee4691d26e86dd7ad9de58c9f577",
   "shader_chain": "ca8b9c5b4e34",
-  "patch_sha256": "1ce24138f6bac5005f73fcfa9ea45af4a843203502ca7f332ce893d5075df077",
+  "patch_sha256": "ff20c3cb0470f430b7bf15897bf77d894d86332435ed02eb6c6cb88ad69f0c36",
   "files": [
     {
       "path": "dm/gfx/nvn/nvn_mtl.m",
@@ -41,7 +41,7 @@
     {
       "path": "dm/ios/tests/ios_look_harness.m",
       "before_sha256": "a1d37bc7d3a9646b1fa55a3631f11fe24e4806910a4ffc6152e14277cb75e127",
-      "after_sha256": "a7327cef56503a58f31635ff527bd17b41cd60dce09fe35e571fff9b2eb32efc"
+      "after_sha256": "87e10b06456d8958b0e7c3b9ff506c90c25210be5a5b72693591cfa529b3d9ff"
     },
     {
       "path": "dm/ios/tools/build_ipa.sh",
