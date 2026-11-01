@@ -3,6 +3,10 @@ name: Touch the Wild Windows host and controls
 on:
   workflow_dispatch:
     inputs:
+      probe_only:
+        description: 'Inspect installed Apple toolchains without building or downloading game files'
+        type: boolean
+        default: false
       romfs:
         description: 'Data delivery: nxrom for independent reusable data and an app-only IPA'
         type: choice
@@ -30,7 +34,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  apple-toolchain:
+    if: ${{ inputs.probe_only == true }}
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - name: Inspect Xcode SDKs and Metal compiler identities
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os, subprocess
+          rows=[]
+          for app in sorted(Path('/Applications').glob('Xcode*.app')):
+              env=dict(os.environ, DEVELOPER_DIR=str(app/'Contents/Developer'))
+              row={'application':str(app)}
+              for name,cmd in [('xcode',['xcodebuild','-version']),('sdk',['xcrun','--sdk','iphoneos','--show-sdk-version']),('metal',['xcrun','--sdk','iphoneos','metal','--version'])]:
+                  result=subprocess.run(cmd,env=env,capture_output=True,text=True,timeout=30)
+                  row[name]={'returncode':result.returncode,'output':(result.stdout+result.stderr).strip()}
+              rows.append(row)
+          print(json.dumps(rows,indent=2))
+          PY
   checks:
+    if: ${{ inputs.probe_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,6 +81,7 @@ jobs:
           "$RUNNER_TEMP/tests/zip"
 
   compile:
+    if: ${{ inputs.probe_only != true }}
     runs-on: windows-latest
     timeout-minutes: 60
     env:
@@ -114,6 +141,7 @@ jobs:
           retention-days: 7
 
   touch-checks:
+    if: ${{ inputs.probe_only != true }}
     name: Native aspect, input, and UIKit handler tests
     runs-on: xcode-27
     timeout-minutes: 25
@@ -179,7 +207,7 @@ jobs:
   # The finished IPA needs the owner's game data and a Mac; it runs only when
   # the repository variable BUILD_IPA is true, so ordinary pushes never start it.
   ipa:
-    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.BUILD_IPA == 'true' && inputs.probe_only != true }}
     uses: ./.github/workflows/build-ipa.yml
     with:
       romfs: ${{ inputs.romfs || 'nxrom' }}
