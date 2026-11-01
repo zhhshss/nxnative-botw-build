@@ -2,6 +2,9 @@ name: Shader compiler cache diagnostics
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/cache-diagnostics.yml'
 
 permissions:
   contents: read
