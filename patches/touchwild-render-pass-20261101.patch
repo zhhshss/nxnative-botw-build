@@ -1,7 +1,7 @@
 diff --git a/dm/games/01007EF00011E000/README.md b/dm/games/01007EF00011E000/README.md
 --- a/dm/games/01007EF00011E000/README.md
 +++ b/dm/games/01007EF00011E000/README.md
-@@ -881,3 +881,27 @@
+@@ -881,3 +881,34 @@
  existing shader libraries must be rebuilt before launching this host. The regular
  build script detects the chain change. Its upstream image workflow needs Python
  3.12 or newer.
@@ -29,6 +29,13 @@ diff --git a/dm/games/01007EF00011E000/README.md b/dm/games/01007EF00011E000/REA
 +backport or this iPad. The candidate includes the corresponding synthetic
 +GPU regression tests. Physical-device sustained FPS and image acceptance
 +remain open. Disable the optimization for a fresh-process comparison.
++
++The backport also corrects the existing shader-write classifier for writable
++storage-buffer addresses carried in uniforms (`NVN_RB_SBUFU`). These need the
++same encoder boundaries as directly bound storage buffers. The literal
++fragment-stage write contract fails before the correction and passes after;
++the CPU-only feedback test covers writable and read-only bindings as well as
++concurrent diagnostic sampling.
 diff --git a/dm/games/settings.tsv b/dm/games/settings.tsv
 --- a/dm/games/settings.tsv
 +++ b/dm/games/settings.tsv
@@ -120,6 +127,15 @@ diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
          g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
      }
      if (g_vis_on) {
+@@ -4803,7 +4802,7 @@
+ static int prog_swrites(NvProg *pr) {
+     int w = 0;
+     for (int st = 0; pr && st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
+-        for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].rw && (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_SBUFP)) { w |= st == 0 ? 1 : st == 1 ? 2 : 4; break; } }
++        for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].rw && (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_SBUFP || sh->rf.b[i].kind == NVN_RB_SBUFU)) { w |= st == 0 ? 1 : st == 1 ? 2 : 4; break; } }
+     return w;
+ }
+ static void order_note(NvProg *pr) {   // after each draw of the pass: does it read memory in a stage after the vertex stage (anything bound there but samplers and driver data)
 @@ -4833,7 +4832,11 @@
      if (g_pass_swrite) { g_vbuf_write_epoch++; return; }   // further shader writes also invalidate aligned vertex snapshots
      if (prog_swrites(pr)) { g_pass_swrite = 1; g_vbuf_write_epoch++; }
@@ -358,7 +374,7 @@ diff --git a/dm/gfx/tests/Makefile b/dm/gfx/tests/Makefile
 diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
 --- a/dm/gfx/tests/t_feedback.m
 +++ b/dm/gfx/tests/t_feedback.m
-@@ -7,7 +7,47 @@
+@@ -7,7 +7,59 @@
  void svc_thread_dump(void) {}
  uint64_t now_ns(void) { return bp_now(); }
  static int checks, failed;
@@ -386,6 +402,18 @@ diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
 +    return 1;
 +}
 +static int feedback_stats_check(void) {
++    NvProg *program = [NvProg new];
++    __attribute__((objc_precise_lifetime)) NvShader *shader = [NvShader new];
++    program->sh[1] = shader; shader->rf.nb = 1;
++    int kinds[] = {NVN_RB_IMG, NVN_RB_SBUFP, NVN_RB_SBUFU};
++    for (unsigned i = 0; i < sizeof kinds / sizeof kinds[0]; i++) {
++        shader->rf.b[0] = (nvn_rbind){.kind=kinds[i], .rw=1};
++        if (prog_swrites(program) != 2) {
++            fprintf(stderr, "FAIL: writable binding kind %d was not classified as a fragment write\n", kinds[i]); return 1;
++        }
++        shader->rf.b[0].rw = 0;
++        if (prog_swrites(program)) { fprintf(stderr, "FAIL: read-only binding classified as a write\n"); return 1; }
++    }
 +    pthread_t worker;
 +    if (pthread_create(&worker, NULL, feedback_stats_encode, NULL)) return 1;
 +    uint64_t total = 0; int valid = 1;
@@ -406,7 +434,7 @@ diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
  
  static id<MTLTexture> target(tex_t *t, uint64_t serial) {
      *t = (tex_t){.magic=MAGIC('T','E','X',0), .serial=serial};
-@@ -115,13 +155,94 @@
+@@ -115,13 +167,94 @@
      printf("feedback reuse: %s\n", before == failed ? "PASS" : "FAIL");
      mtl_tex_release(&source);
  }
@@ -501,7 +529,7 @@ diff --git a/dm/gfx/tests/t_feedback.m b/dm/gfx/tests/t_feedback.m
          options:nil error:&error];
      CHECK(lib != nil, "synthetic shader compiles");
      if (!lib) { fprintf(stderr, "%s\n", error.localizedDescription.UTF8String); return 1; }
-@@ -138,6 +259,13 @@
+@@ -138,6 +271,13 @@
      const int slots[] = {0, 128, 255};
      for (int i = 0; i < 3; i++) slot_case(pr, pipeline, slots[i], i);
      reuse_case(pr);

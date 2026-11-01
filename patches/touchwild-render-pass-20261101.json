@@ -18,7 +18,7 @@
     {
       "path": "dm/games/01007EF00011E000/README.md",
       "before_sha256": "9d5da1ade9687d5d1bfdf3a8e4ee6318cb4aeeafe563f5b5ef9099fb6078d4eb",
-      "after_sha256": "dfe35050d292d2d8e676bf64caf163a6852fa95e6409102f0c304356220bd5f9"
+      "after_sha256": "8a6f38ce0a02beba44bc514fd7542209450ae402e0f4860507e94d17578cab37"
     },
     {
       "path": "dm/games/settings.tsv",
@@ -38,7 +38,7 @@
     {
       "path": "dm/gfx/nvn/nvn_mtl.m",
       "before_sha256": "11b424694422eb403c9b45ccca956f1d99fd9d261bd5222a4f97b48189a10285",
-      "after_sha256": "5448fbac2b5cf9a7cefaea8e20c8b5bddaee3fc39d37eb089c44b0e2865c87b5"
+      "after_sha256": "b17c610259ee090fbd564328397a01d240f0516fc2f39b665ae4f0595e6b69d8"
     },
     {
       "path": "dm/gfx/tests/Makefile",
@@ -48,7 +48,7 @@
     {
       "path": "dm/gfx/tests/t_feedback.m",
       "before_sha256": "590cd2bb5c97c3ad0ed9849281d4080a8a20836505ef64ad1f932d113ad05af7",
-      "after_sha256": "bab40e4073dc75c52f1e054d8379e83ad58cd67c308904ed451f9242b11927a0"
+      "after_sha256": "b3e5c6a894e3eba8b89926928dd139e11b69f21ae606e7443f1ab05aa8718bfb"
     },
     {
       "path": "dm/gfx/tests/t_rt_range.m",
@@ -96,11 +96,12 @@
       "after_sha256": "eddfc522236ceacdd3df2d214c78b7c6a3b1092a9102c3848fdba8904b5dc800"
     }
   ],
-  "patch_sha256": "9152e26ddbab85712f1f7318496d4a433577b1366889f31b82342592ee568e50",
+  "patch_sha256": "8a0de7496659c68f13b90e074e1d34c3e4edc9a8aa8b47e0357d112b4823486e",
   "device_tested": false,
   "adaptations": [
     "Existing source has no Seated canvas remapping; all existing specialized output guards are retained.",
     "Feedback diagnostics have a local declaration; shader-interface headers are unchanged.",
-    "Shared diagnostic counters use atomic accesses across encode and present threads."
+    "Shared diagnostic counters use atomic accesses across encode and present threads.",
+    "Writable storage-buffer addresses in uniforms participate in the existing shader-write boundary classifier; readonly bindings remain readonly."
   ]
 }
