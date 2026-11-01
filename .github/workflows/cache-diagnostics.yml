@@ -1,0 +1,51 @@
+name: Shader compiler cache diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compiler-identity:
+    runs-on: xcode-27
+    timeout-minutes: 10
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Ensure the same Metal component as the IPA build
+        run: |
+          xcrun -sdk iphoneos metal --version >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
+      - name: Record compiler identities and binary digests
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, platform, subprocess
+          from pathlib import Path
+          def output(argv):
+              return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT).strip()
+          report = {"machine": platform.machine(), "xcode": output(["xcodebuild", "-version"]), "sdks": {}}
+          for sdk in ("macosx", "iphoneos"):
+              values = {"version": output(["xcrun", "-sdk", sdk, "--show-sdk-version"]),
+                        "build": output(["xcrun", "-sdk", sdk, "--show-sdk-build-version"]), "tools": {}}
+              for tool in ("metal", "metallib", "metal-tt"):
+                  path = Path(output(["xcrun", "-sdk", sdk, "--find", tool]))
+                  digest = hashlib.sha256()
+                  with path.open("rb") as stream:
+                      for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                          digest.update(chunk)
+                  values["tools"][tool] = {"path": str(path), "sha256": digest.hexdigest(),
+                      "version": output(["xcrun", "-sdk", sdk, tool, "-version" if tool == "metal-tt" else "--version"])}
+              report["sdks"][sdk] = values
+          encoded = json.dumps(report, indent=2) + "\n"
+          Path("compiler-identity.json").write_text(encoded)
+          print(encoded)
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: compiler-identity
+          path: compiler-identity.json
+          if-no-files-found: error
+          retention-days: 14
