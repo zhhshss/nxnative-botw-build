@@ -11,8 +11,16 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 from urllib.parse import quote
+from urllib.error import HTTPError
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
+
+try:
+    from .artifact_zip import RemoteZip
+except ImportError:
+    from artifact_zip import RemoteZip
 
 NAME = "BOTW-iPad-Touch.ipa"
 CHUNK = 1024 * 1024
@@ -39,23 +47,58 @@ def expected_digest(log: str, name: str) -> str:
     return hashes.pop()
 
 
+def artifact_download_url(repo: str, artifact: int) -> str:
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    token = subprocess.check_output(["gh", "auth", "token"], text=True).strip()
+    request = Request(f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact}/zip",
+                      headers={"Authorization": "Bearer " + token,
+                               "Accept": "application/vnd.github+json", "User-Agent": "botw-ipa-pickup"})
+    try:
+        with build_opener(NoRedirect).open(request, timeout=60):
+            raise ValueError("the artifact endpoint did not return a download redirect")
+    except HTTPError as exc:
+        if exc.code != 302:
+            raise ValueError(f"artifact download authorization failed (HTTP {exc.code})") from exc
+        url = exc.headers.get("Location", "")
+        exc.close()
+    if not url.startswith("https://"):
+        raise ValueError("the artifact download redirect must use HTTPS")
+    return url
+
+
 def extract_stream(source, output: Path, password: str, name: str, expected: str) -> None:
-    """bsdtar handles both ZIP layers, ZIP64, encryption and CRC in bounded memory."""
+    """Extract a legacy encrypted ZIP entry, whose outer CRC is checked by source."""
     part = output.with_name(output.name + ".partial")
     if part.exists():
         raise ValueError(f"unfinished pickup already exists: {part}")
-    processes = []
-    with tempfile.TemporaryFile() as outer_errors, tempfile.TemporaryFile() as inner_errors:
+    created, transfer_errors = False, []
+    with tempfile.TemporaryFile() as inner_errors:
+        inner = subprocess.Popen(["bsdtar", "--passphrase", password, "-xOf", "-", name],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=inner_errors)
+        def transfer():
+            try:
+                accepting = True
+                for chunk in iter(lambda: source.read(CHUNK), b""):
+                    if accepting:
+                        try:
+                            inner.stdin.write(chunk)
+                        except BrokenPipeError:
+                            accepting = False
+            except Exception as exc:
+                transfer_errors.append(exc)
+            finally:
+                try:
+                    inner.stdin.close()
+                except BrokenPipeError:
+                    pass
+        producer = threading.Thread(target=transfer, daemon=True)
+        producer.start()
         try:
-            outer = subprocess.Popen(["bsdtar", "-xOf", "-", name + ".zip"],
-                                     stdin=source, stdout=subprocess.PIPE, stderr=outer_errors)
-            processes.append(outer)
-            inner = subprocess.Popen(["bsdtar", "--passphrase", password, "-xOf", "-", name],
-                                     stdin=outer.stdout, stdout=subprocess.PIPE, stderr=inner_errors)
-            processes.append(inner)
-            outer.stdout.close()
             h, received, reported = hashlib.sha256(), 0, 0
             fd = os.open(part, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            created = True
             with os.fdopen(fd, "wb") as dest:
                 for chunk in iter(lambda: inner.stdout.read(CHUNK), b""):
                     dest.write(chunk)
@@ -65,11 +108,16 @@ def extract_stream(source, output: Path, password: str, name: str, expected: str
                         print(f"IPA pickup: {received / 2**30:.1f} GiB", flush=True)
                         reported = received
             inner.stdout.close()
-            statuses = [p.wait() for p in processes]
-            if any(statuses):
-                outer_errors.seek(0); inner_errors.seek(0)
-                detail = (outer_errors.read() + inner_errors.read()).decode(errors="replace")
+            status = inner.wait()
+            if status:
+                source.close()
+            producer.join(timeout=5)
+            if status:
+                inner_errors.seek(0)
+                detail = inner_errors.read().decode(errors="replace")
                 raise ValueError("archive extraction failed: " + detail.replace(password, "<redacted>")[-1200:])
+            if producer.is_alive() or transfer_errors:
+                raise ValueError("artifact ZIP entry transfer did not finish successfully")
             if h.hexdigest() != expected:
                 raise ValueError("IPA SHA256 differs from the successful build")
             with zipfile.ZipFile(part) as ipa:
@@ -78,11 +126,15 @@ def extract_stream(source, output: Path, password: str, name: str, expected: str
                     raise ValueError("archive is missing the app executable or Info.plist")
             os.replace(part, output)
         finally:
-            for process in processes:
-                if process.poll() is None:
-                    process.kill()
-                process.wait()
-            part.unlink(missing_ok=True)
+            if inner.poll() is None:
+                inner.kill()
+            inner.wait()
+            inner.stdout.close()
+            if producer.is_alive():
+                source.close()
+                producer.join(timeout=5)
+            if created:
+                part.unlink(missing_ok=True)
 
 
 def extract_aes_stream(source, output: Path, password: str, name: str, expected: str) -> None:
@@ -93,25 +145,18 @@ def extract_aes_stream(source, output: Path, password: str, name: str, expected:
     part = output.with_name(output.name + ".partial")
     if part.exists():
         raise ValueError(f"unfinished pickup already exists: {part}")
-    with tempfile.TemporaryFile() as errors:
-        outer = subprocess.Popen(["bsdtar", "-xOf", "-", name + ".enc"],
-                                 stdin=source, stdout=subprocess.PIPE, stderr=errors)
-        try:
-            decrypt_ipa_stream(outer.stdout, part, expected, password.encode())
-            outer.stdout.close()
-            if outer.wait():
-                raise ValueError("encrypted artifact extraction failed")
-            with zipfile.ZipFile(part) as ipa:
-                if not {"Payload/DmIOS.app/Info.plist", "Payload/DmIOS.app/DmIOS"} <= set(ipa.namelist()):
-                    raise ValueError("archive is missing the app executable or Info.plist")
-            os.replace(part, output)
-        except Exception as exc:
-            raise ValueError("encrypted IPA verification failed") from exc
-        finally:
-            outer.stdout.close()
-            if outer.poll() is None:
-                outer.kill()
-            outer.wait()
+    created = False
+    try:
+        decrypt_ipa_stream(source, part, expected, password.encode())
+        created = True
+        with zipfile.ZipFile(part) as ipa:
+            if not {"Payload/DmIOS.app/Info.plist", "Payload/DmIOS.app/DmIOS"} <= set(ipa.namelist()):
+                raise ValueError("archive is missing the app executable or Info.plist")
+        os.replace(part, output)
+    except Exception as exc:
+        raise ValueError("encrypted IPA verification failed") from exc
+    finally:
+        if created:
             part.unlink(missing_ok=True)
 
 
@@ -151,20 +196,12 @@ def main() -> None:
         password = args.password_file.read_text().strip()
         if not password:
             raise ValueError("the IPA password file is empty")
-        with tempfile.TemporaryFile() as errors:
-            download = subprocess.Popen(["gh", "api", f"repos/{args.repo}/actions/artifacts/{artifact['id']}/zip"],
-                                        stdout=subprocess.PIPE, stderr=errors)
-            try:
-                pickup = extract_aes_stream if "artifact is AES-256-GCM encrypted" in log else extract_stream
-                pickup(download.stdout, output, password, NAME, expected)
-                if download.wait():
-                    output.unlink(missing_ok=True)
-                    raise ValueError("artifact download failed")
-            finally:
-                download.stdout.close()
-                if download.poll() is None:
-                    download.kill()
-                download.wait()
+        aes = "artifact is AES-256-GCM encrypted" in log
+        with RemoteZip(artifact_download_url(args.repo, artifact["id"])) as archive:
+            entry = archive.entry(NAME + (".enc" if aes else ".zip"))
+            with archive.open_entry(entry) as source:
+                pickup = extract_aes_stream if aes else extract_stream
+                pickup(source, output, password, NAME, expected)
     (args.output_dir / (NAME + ".sha256")).write_text(f"{expected}  {NAME}\n")
     receipt = {"run": args.run, "head_sha": run["headSha"], "workflow": run["url"],
                "file": NAME, "sha256": expected, "bytes": output.stat().st_size}

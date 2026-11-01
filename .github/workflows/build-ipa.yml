@@ -194,6 +194,7 @@ jobs:
         run: |
           python3 scripts/shader_cache.py key --source "$RUNNER_TEMP/stage" \
             --containers "$RUNNER_TEMP/nsp" --package "$PACKAGE" --gpu "$GPU" \
+            --legacy-compiler-root "${{ vars.LEGACY_METAL_COMPILER_ROOT }}" \
             --output "$RUNNER_TEMP/shader-cache.key"
       - name: Restore the encrypted shader cache
         id: shader-cache
@@ -203,7 +204,9 @@ jobs:
         with:
           path: ${{ runner.temp }}/botw-shader-cache.bin
           key: botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-${{ github.run_id }}
-          restore-keys: botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-
+          restore-keys: |
+            botw-ipa-shaders-v1-${{ steps.shader-key.outputs.key }}-
+            botw-ipa-shaders-v1-${{ steps.shader-key.outputs.legacy_key }}-
       - name: Authenticate and unpack cached shader outputs
         id: shader-unpack
         if: steps.shader-cache.outputs.cache-matched-key != ''
@@ -211,12 +214,14 @@ jobs:
         run: |
           python3 scripts/shader_cache.py restore --cache "$RUNNER_TEMP/botw-shader-cache.bin" \
             --key-file "$RUNNER_TEMP/shader-cache.key" \
+            --legacy-key-file "$RUNNER_TEMP/shader-cache.key.legacy" \
             --work "$RUNNER_TEMP/nsp/01007EF00011E000_build"
       - name: Build the IPA
         id: build-ipa
         working-directory: ${{ runner.temp }}/stage
         env:
           DM_CI_RECLAIM_INPUTS: '1'
+          DM_CI_LEGACY_METAL_COMPILER_ROOT: ${{ vars.LEGACY_METAL_COMPILER_ROOT }}
         run: |
           set -euo pipefail
           args=("$RUNNER_TEMP/nsp" -k "$RUNNER_TEMP/prod.keys" -o "$RUNNER_TEMP/out/BOTW-iPad-Touch.ipa")
@@ -233,7 +238,7 @@ jobs:
           python3 scripts/build_ipa_from_nsp.py "${args[@]}" | tee "$RUNNER_TEMP/ipa-build.log"
       - name: Encrypt completed shader and pipeline outputs
         id: shader-cache-pack
-        if: ${{ always() && !cancelled() && steps.shader-key.outputs.key != '' && steps.shader-unpack.outcome != 'success' }}
+        if: ${{ always() && !cancelled() && steps.shader-key.outputs.key != '' && (steps.shader-unpack.outcome != 'success' || steps.shader-unpack.outputs.legacy == 'true') }}
         continue-on-error: true
         run: |
           python3 scripts/shader_cache.py save --cache "$RUNNER_TEMP/botw-shader-cache.bin" \

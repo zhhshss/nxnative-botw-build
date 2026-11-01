@@ -2,6 +2,7 @@ import hashlib
 import io
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import tarfile
 import tempfile
@@ -9,10 +10,11 @@ import threading
 import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 import zipfile
 
 from cryptography.exceptions import InvalidTag
-from scripts import fetch_ipa, shader_cache, serve_owner_files
+from scripts import artifact_zip, fetch_ipa, shader_cache, serve_owner_files
 
 
 class ForwardOnly(io.BytesIO):
@@ -119,6 +121,31 @@ class ShaderCacheTests(unittest.TestCase):
         (containers / "base.nsp").write_bytes(b"game v2")
         self.assertNotEqual(first, key())
 
+    def test_compiler_mount_changes_reuse_only_an_identical_legacy_cache(self):
+        source, containers = self.root / "source", self.root / "containers"
+        tool = source / "dm/gfx/tools/compiler.py"
+        tool.parent.mkdir(parents=True); tool.write_text("compiler v1")
+        containers.mkdir(); game = containers / "base.nsp"; game.write_bytes(b"game v1")
+        old_root = "/private/var/run/old/Metal.xctoolchain"
+        new_root = "/private/var/run/new/Metal.xctoolchain"
+        old = "metal v1\nTarget: air64\nInstalledDir: " + old_root + "/usr/metal/current/bin"
+        current = old.replace(old_root, new_root)
+        keys = lambda version=current: shader_cache.cache_keys(source, containers, "", "g18p", [version], self.password, old_root)
+        stable, compatible = keys()
+        self.assertEqual(stable, keys(old)[0])
+        self.assertNotEqual(stable, compatible)
+        shader_cache.save(self.work, self.cache, compatible, self.password)
+        self.assertTrue(shader_cache.restore(self.cache, self.root / "restored", stable, self.password, compatible))
+        changed = keys(current.replace("metal v1", "metal v2"))
+        self.assertNotEqual(stable, changed[0])
+        self.assertNotEqual(compatible, changed[1])
+        with self.assertRaises(ValueError):
+            shader_cache.restore(self.cache, self.root / "wrong-compiler", changed[0], self.password, changed[1])
+        game.write_bytes(b"game v2")
+        changed = keys()
+        with self.assertRaises(ValueError):
+            shader_cache.restore(self.cache, self.root / "wrong-game", changed[0], self.password, changed[1])
+
 
 @unittest.skipUnless(shutil.which("zip") and shutil.which("bsdtar"), "requires zip and libarchive-tools")
 class IPAPickupTests(unittest.TestCase):
@@ -143,18 +170,19 @@ class IPAPickupTests(unittest.TestCase):
             with zip.open(inner.name, "w", force_zip64=True) as entry:
                 entry.write(inner.read_bytes())
         self.outer.write_bytes(stream.getvalue())
+        self.server = serve_owner_files.create_server(self.root, "127.0.0.1", 0, "test-token")
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}/test-token/"
+        self.addCleanup(self.stop_server)
+
+    def stop_server(self):
+        self.server.shutdown(); self.server.server_close(); self.thread.join()
 
     def extract(self, output, password, expected):
-        producer = subprocess.Popen(["cat", str(self.outer)], stdout=subprocess.PIPE,
-                                    stderr=subprocess.DEVNULL)
-        try:
-            fetch_ipa.extract_stream(producer.stdout, output, password, self.name, expected)
-        finally:
-            producer.stdout.close()
-            try:
-                producer.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                producer.kill(); producer.wait()
+        with artifact_zip.RemoteZip(self.url + self.outer.name) as archive:
+            with archive.open_entry(archive.entry(self.name + ".zip")) as source:
+                fetch_ipa.extract_stream(source, output, password, self.name, expected)
 
     def test_nested_zip64_stream_produces_only_the_verified_ipa(self):
         output = self.root / "download.ipa"
@@ -185,12 +213,56 @@ class IPAPickupTests(unittest.TestCase):
     def test_authenticated_ipa_stream_from_stored_zip64(self):
         artifact = self.encrypted_artifact()
         output = self.root / "aes-download.ipa"
-        producer = subprocess.Popen(["cat", str(artifact)], stdout=subprocess.PIPE)
-        try:
-            fetch_ipa.extract_aes_stream(producer.stdout, output, self.password, self.name, self.expected)
+        with artifact_zip.RemoteZip(self.url + artifact.name) as archive:
+            with archive.open_entry(archive.entry(self.name + ".enc")) as source:
+                fetch_ipa.extract_aes_stream(source, output, self.password, self.name, self.expected)
             self.assertEqual(output.read_bytes(), self.ipa.read_bytes())
-        finally:
-            producer.stdout.close(); producer.wait(timeout=5)
+
+    def test_incorrect_outer_crc_never_publishes_an_otherwise_valid_ipa(self):
+        encrypted = self.root / (self.name + ".enc")
+        shader_cache.encrypt_archive(self.ipa, encrypted, self.expected, self.password.encode(), kind="ipa")
+        damaged = self.root / "bad-crc.zip"
+        with zipfile.ZipFile(damaged, "w", compression=zipfile.ZIP_STORED) as archive:
+            archive.write(encrypted, encrypted.name)
+            archive.filelist[-1].CRC ^= 1
+        output = self.root / "rejected-outer-crc.ipa"
+        with artifact_zip.RemoteZip(self.url + damaged.name) as archive:
+            with archive.open_entry(archive.entry(encrypted.name)) as source:
+                with self.assertRaises(ValueError):
+                    fetch_ipa.extract_aes_stream(source, output, self.password, self.name, self.expected)
+        self.assertFalse(output.exists())
+        self.assertFalse(output.with_name(output.name + ".partial").exists())
+
+    def test_zip64_directory_size_above_4gib_without_reading_the_payload(self):
+        archive_path = self.root / "large-descriptor.zip"
+        name, size = b"payload.enc", (1 << 32) + 137
+        with archive_path.open("wb") as archive:
+            # Actions' streamed local header gives no ZIP64 sizes. Its 64-bit
+            # descriptor is ambiguous to a reader that has not read the directory.
+            archive.write(struct.pack("<4s5H3I2H", b"PK\x03\x04", 20, 8, 0, 0, 0, 0, 0, 0, len(name), 0) + name)
+            start = archive.tell()
+            archive.seek(start + size)
+            archive.write(struct.pack("<4sIQQ", b"PK\x07\x08", 0, size, size))
+            directory_start = archive.tell()
+            extra = struct.pack("<HHQQ", 1, 16, size, size)
+            archive.write(struct.pack("<4s6H3I5H2I", b"PK\x01\x02", 45, 45, 8, 0, 0, 0, 0,
+                                      0xffffffff, 0xffffffff, len(name), len(extra), 0, 0, 0, 0, 0) + name + extra)
+            directory_size = archive.tell() - directory_start
+            end64 = archive.tell()
+            archive.write(struct.pack("<4sQ2H2I4Q", b"PK\x06\x06", 44, 45, 45, 0, 0, 1, 1, directory_size, directory_start))
+            archive.write(struct.pack("<4sIQI", b"PK\x06\x07", 0, end64, 1))
+            archive.write(struct.pack("<4s4H2IH", b"PK\x05\x06", 0, 0, 1, 1, directory_size, 0xffffffff, 0))
+        requests = []
+        def record(request, **kwargs):
+            requests.append(request)
+            return urlopen(request, **kwargs)
+        with patch.object(artifact_zip, "urlopen", side_effect=record):
+            with artifact_zip.RemoteZip(self.url + archive_path.name) as archive:
+                entry = archive.entry(name.decode())
+        self.assertEqual((entry.start, entry.size), (start, size))
+        ranges = [r.headers["Range"] for r in requests if "Range" in r.headers]
+        received = sum(int(r.split("-")[1]) - int(r.split("=")[1].split("-")[0]) + 1 for r in ranges)
+        self.assertLess(received, 128 * 1024, "the central directory must be read without buffering a multi-gigabyte artifact")
 
     def test_authenticated_ipa_rejects_wrong_password_and_keeps_existing_output(self):
         encrypted = self.root / "encrypted.bin"

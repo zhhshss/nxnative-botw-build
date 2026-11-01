@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import platform
+import re
 import shutil
 import struct
 import subprocess
@@ -37,12 +38,13 @@ def file_digest(path: Path) -> bytes:
     return h.digest()
 
 
-def cache_key(source: Path, containers: Path, package: str, gpu: str,
-              compiler_versions: list[str], password_namespace: bytes = b"") -> str:
-    h = hashlib.sha256()
-    h.update(json.dumps(["ipa-shaders-v1", platform.machine(), package,
-                         gpu or "g18p", compiler_versions]).encode())
-    h.update(hashlib.sha256(password_namespace).digest())
+def compiler_identity(version: str) -> str:
+    # Metal's cryptex mount has a random suffix on each runner. It is a location,
+    # while the remaining version output identifies the actual compiler/target.
+    return re.sub(r"(?m)^InstalledDir:.*\n?", "", version).strip()
+
+
+def input_records(source: Path, containers: Path) -> list[bytes]:
     paths = set((source / "dm/gfx/tools").rglob("*"))
     paths.update((source / "dm/gfx/nvn").glob("*.h"))
     paths.update((source / f"dm/games/{GAME}").glob("*.tsv"))
@@ -53,17 +55,49 @@ def cache_key(source: Path, containers: Path, package: str, gpu: str,
              and p.name not in {"c1_full.tsv", "cb_extent.tsv"}}
     if not paths:
         raise ValueError("no shader sources found")
+    records = []
     for p in sorted(paths):
-        h.update(p.relative_to(source).as_posix().encode() + b"\0")
-        h.update(file_digest(p))
+        records.append(p.relative_to(source).as_posix().encode() + b"\0" + file_digest(p))
     games = sorted(p for p in containers.iterdir() if p.is_file()
                    and p.suffix.lower() in {".nsp", ".nsz", ".xci", ".xcz"})
     if not games:
         raise ValueError("no downloaded game containers found")
     for p in games:
-        h.update(p.name.encode() + b"\0")
-        h.update(file_digest(p))
+        records.append(p.name.encode() + b"\0" + file_digest(p))
+    return records
+
+
+def key_from_records(records: list[bytes], package: str, gpu: str,
+                     versions: list[str], password_namespace: bytes) -> str:
+    h = hashlib.sha256()
+    h.update(json.dumps(["ipa-shaders-v1", platform.machine(), package,
+                         gpu or "g18p", versions]).encode())
+    h.update(hashlib.sha256(password_namespace).digest())
+    for record in records:
+        h.update(record)
     return h.hexdigest()
+
+
+def cache_keys(source: Path, containers: Path, package: str, gpu: str,
+               compiler_versions: list[str], password_namespace: bytes = b"",
+               legacy_compiler_root: str = "") -> tuple[str, str]:
+    records = input_records(source, containers)
+    stable = key_from_records(records, package, gpu,
+                              [compiler_identity(v) for v in compiler_versions], password_namespace)
+    legacy = ""
+    if legacy_compiler_root:
+        if not legacy_compiler_root.startswith("/") or not legacy_compiler_root.endswith("/Metal.xctoolchain"):
+            raise ValueError("legacy compiler root must name an absolute Metal.xctoolchain path")
+        versions = [re.sub(r"(?m)^(InstalledDir: )[^\n]*?/Metal\.xctoolchain([^\n]*)$",
+                           lambda m: m.group(1) + legacy_compiler_root + m.group(2), v)
+                    for v in compiler_versions]
+        legacy = key_from_records(records, package, gpu, versions, password_namespace)
+    return stable, legacy
+
+
+def cache_key(source: Path, containers: Path, package: str, gpu: str,
+              compiler_versions: list[str], password_namespace: bytes = b"") -> str:
+    return cache_keys(source, containers, package, gpu, compiler_versions, password_namespace)[0]
 
 
 def derive_key(password: bytes, salt: bytes) -> bytes:
@@ -94,7 +128,8 @@ def encrypt_archive(archive: Path, output: Path, key: str, password: bytes,
         part.unlink(missing_ok=True)
 
 
-def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes) -> None:
+def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes,
+                    compatible_key: str = "") -> bool:
     try:
         with cache.open("rb") as src:
             if src.read(len(MAGIC)) != MAGIC:
@@ -104,7 +139,7 @@ def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes) -> No
                 raise ValueError("invalid shader cache header")
             encoded = src.read(size)
             metadata = json.loads(encoded)
-            if metadata["key"] != key:
+            if metadata["key"] not in {key, compatible_key} - {""}:
                 raise ValueError("shader cache key mismatch")
             if metadata.get("kind", "shader-cache") != "shader-cache":
                 raise ValueError("unexpected encrypted archive type")
@@ -127,6 +162,7 @@ def decrypt_archive(cache: Path, archive: Path, key: str, password: bytes) -> No
                     dst.write(decryptor.update(chunk))
                     remaining -= len(chunk)
                 dst.write(decryptor.finalize())
+            return metadata["key"] != key
     except BaseException:
         archive.unlink(missing_ok=True)
         raise
@@ -187,12 +223,13 @@ def permitted(name: str) -> bool:
     return any(name == root or name.startswith(root + "/") for root in ROOTS)
 
 
-def restore(cache: Path, work: Path, key: str, password: bytes) -> None:
+def restore(cache: Path, work: Path, key: str, password: bytes,
+            compatible_key: str = "") -> bool:
     work.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="shader-cache-restore-", dir=work.parent) as tmp:
         scratch = Path(tmp)
         archive = scratch / "outputs.tar.gz"
-        decrypt_archive(cache, archive, key, password)
+        legacy = decrypt_archive(cache, archive, key, password, compatible_key)
         with tarfile.open(archive, "r:gz") as tar:
             members = tar.getmembers()
             if any(not permitted(m.name) or not (m.isfile() or m.isdir()) for m in members):
@@ -203,6 +240,7 @@ def restore(cache: Path, work: Path, key: str, password: bytes) -> None:
             if source.is_dir():
                 shutil.copytree(source, work / root, dirs_exist_ok=True)
     print("Restored authenticated shader and pipeline outputs; build fingerprints will validate reuse.")
+    return legacy
 
 
 def save(work: Path, output: Path, key: str, password: bytes) -> bool:
@@ -242,11 +280,14 @@ def main() -> None:
     p.add_argument("--package", default="")
     p.add_argument("--gpu", default="")
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--legacy-compiler-root", default="")
     for command in ("restore", "save"):
         p = sub.add_parser(command)
         p.add_argument("--work", type=Path, required=True)
         p.add_argument("--cache", type=Path, required=True)
         p.add_argument("--key-file", type=Path, required=True)
+        if command == "restore":
+            p.add_argument("--legacy-key-file", type=Path)
     p = sub.add_parser("encrypt-ipa")
     p.add_argument("--input", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
@@ -258,13 +299,18 @@ def main() -> None:
                                 ["xcrun", "-sdk", "iphoneos", "metal", "--version"],
                                 ["xcrun", "-sdk", "iphoneos", "metal-tt", "-version"],
                                 ["xcrun", "--sdk", "iphoneos", "--show-sdk-version"])]
-        key = cache_key(args.source, args.containers, args.package, args.gpu, versions,
-                        os.environ.get("IPA_ZIP_PASSWORD", "").encode())
+        key, legacy_key = cache_keys(args.source, args.containers, args.package, args.gpu, versions,
+                                     os.environ.get("IPA_ZIP_PASSWORD", "").encode(), args.legacy_compiler_root)
         args.output.write_text(key + "\n")
+        args.output.with_name(args.output.name + ".legacy").write_text(legacy_key + "\n")
+        print("Shader compiler identities: " + json.dumps([compiler_identity(v) for v in versions]))
         print(f"Shader cache key: {key}")
+        if legacy_key:
+            print(f"Compatible legacy shader cache key: {legacy_key}")
         if path := os.environ.get("GITHUB_OUTPUT"):
             with open(path, "a") as f:
                 f.write(f"key={key}\n")
+                f.write(f"legacy_key={legacy_key}\n")
         return
     password = os.environ["IPA_ZIP_PASSWORD"].encode()
     if args.command == "encrypt-ipa":
@@ -272,7 +318,11 @@ def main() -> None:
         return
     key = args.key_file.read_text().strip()
     if args.command == "restore":
-        restore(args.cache, args.work, key, password)
+        compatible = args.legacy_key_file.read_text().strip() if args.legacy_key_file else ""
+        legacy = restore(args.cache, args.work, key, password, compatible)
+        if path := os.environ.get("GITHUB_OUTPUT"):
+            with open(path, "a") as f:
+                f.write(f"legacy={'true' if legacy else 'false'}\n")
     else:
         ready = save(args.work, args.cache, key, password)
         if path := os.environ.get("GITHUB_OUTPUT"):

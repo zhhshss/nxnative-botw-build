@@ -1,18 +1,79 @@
-diff --git a/scripts/build_ipa_from_nsp.py b/scripts/build_ipa_from_nsp.py
 --- a/scripts/build_ipa_from_nsp.py
 +++ b/scripts/build_ipa_from_nsp.py
-@@ -1927,9 +1927,9 @@
+@@ -867,14 +867,15 @@
+                 if e.is_dir(follow_symlinks=False): todo.append(e.path)
+                 else: out.append((os.path.relpath(e.path, d), e.stat(follow_symlinks=False)))
+     return sorted(out, key=lambda x: x[0])
+ 
+ 
+-def fingerprint(*items, env=None):
++def fingerprint(*items, env=None, compiler_root=None):
+     """sha256 over a stage's inputs. Items: ('files', paths) = names and content (a missing file counts too); ('tree', folder) = relative path and size of every file under it
+     (a RomFS: check_build pins its version, so names and sizes stand for its content); ('stat', folder) = relative path, size and mtime of every file under it (the translator's binaries);
+-    ('cmd', argv) = a tool's version output (run with env); anything else = its repr"""
++    ('cmd', argv) = a tool's version output without its volatile InstalledDir (run with env); anything else = its repr.
++    compiler_root reconstructs an old compiler-location fingerprint for a checked CI cache migration"""
+     h = hashlib.sha256()
+     for it in items:
+         kind, v = it if isinstance(it, tuple) and len(it) == 2 and it[0] in ('files', 'tree', 'stat', 'cmd') else ('repr', it)
+         h.update(f'\0{kind}\0'.encode())
+         if kind == 'files':
+@@ -883,11 +884,19 @@
+                 try: h.update(hashlib.sha256(p.read_bytes()).digest())
+                 except OSError: h.update(b'missing')
+         elif kind in ('tree', 'stat'):
+             for rel, st in files_under(v): h.update(f'{rel}\0{st.st_size}\0{st.st_mtime_ns if kind == "stat" else ""}\n'.encode())
+         elif kind == 'cmd':
+-            try: r = subprocess.run(v, env=env, capture_output=True, text=True, timeout=120); h.update((r.stdout + r.stderr).encode())
++            try:
++                r = subprocess.run(v, env=env, capture_output=True, text=True, timeout=120)
++                version = r.stdout + r.stderr
++                if compiler_root:
++                    version = re.sub(r'(?m)^(InstalledDir: )[^\n]*?/Metal\.xctoolchain([^\n]*)$',
++                                     lambda m: m.group(1) + compiler_root + m.group(2), version)
++                else:
++                    version = re.sub(r'(?m)^InstalledDir:.*\n?', '', version)
++                h.update(version.encode())
+             except (OSError, subprocess.TimeoutExpired): h.update(b'missing')
+         else: h.update(repr(v).encode())
+     return h.hexdigest()
+ 
+ 
+@@ -1926,15 +1935,29 @@
+     libs, kf, kmac = out / f'b-{chain}', ios / f'b-{chain}.key', sh / f'mac-b-{chain}.key'
      pso_pairs = g.table('pso_pairs.tsv')
      if not pso_pairs.is_file(): pso_pairs = sh / 'pso_pairs.tsv'   # the split's copy is a shader input too (vs_pad)
      if pkg_key:
          PROG.set(step='checking the inputs')
 -        key = fingerprint(pkg_key, ('files', chain_files(repo)), ('stat', xlate.parent), ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
-+        key = fingerprint(pkg_key, ('files', chain_files(repo)), ('files', [xlate.parent / rel for rel, _ in files_under(xlate.parent)]), ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
-                           {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')}, env=env)
-         note = next((n for k in ((kmac, kf) if mac else (kf,)) if (n := reused(k, key)) is not None), None)
+-                          {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')}, env=env)
+-        note = next((n for k in ((kmac, kf) if mac else (kf,)) if (n := reused(k, key)) is not None), None)
++        inputs = (pkg_key, ('files', chain_files(repo)), ('files', [xlate.parent / rel for rel, _ in files_under(xlate.parent)]),
++                  ('files', shader_profile_files(repo, g) + [pso_pairs]), shader_profile_rules(g), *toolchain(repo, env), str(xlate),
++                  {k: env.get(k) for k in ('XLATE_DEBUG', 'XLATE_REDUCED')})
++        key = fingerprint(*inputs, env=env)
++        keyfiles = (kmac, kf) if mac else (kf,)
++        note = next((n for k in keyfiles if (n := reused(k, key)) is not None), None)
++        legacy_file = None
++        # The old key included the random Metal cryptex mount. Reconstruct that
++        # exact key from all current inputs, not an arbitrary cached key.
++        legacy_root = env.get('DM_CI_LEGACY_METAL_COMPILER_ROOT') if env.get('GITHUB_ACTIONS') == 'true' else None
++        if note is None and legacy_root:
++            legacy_key = fingerprint(*inputs, env=env, compiler_root=legacy_root)
++            legacy_file = next((k for k in keyfiles if reused(k, legacy_key) is not None), None)
++            if legacy_file is not None: note = reused(legacy_file, legacy_key)
          # the libraries are the last build's, so are tables that name their stamp; a missing or stale one is made from that build's Mac outputs, and without them the step runs again
          if next(libs.glob('*_b.metallib'), None) and note is not None and chain_tables(py, repo, sh, env, logs, g, chain):
-@@ -2391,8 +2391,25 @@
++            if legacy_file is not None:
++                legacy_file.write_text(f'{key}\n{note}\n')
++                say('migrated shader reuse fingerprint: identical inputs, compiler install path excluded')
+             prune_stale_chains(sh, chain)
+             PROG.end(f'{note}, reused (inputs unchanged)'); return out
+     else: key = None
+     rmtree(kmac)
+     if not mac: rmtree(kf)
+@@ -2390,10 +2413,27 @@
+             'the registered builds\' fixed addresses do not apply there; opt-in function patches apply only on a verified code match (see rewrite logs), and the game may not run as well' if other else '; every module is a registered build'))
          if other and patched: report_fix_coverage(patched, other, reg)
      if provisional:
          say(f'[RED] this {artifact} was built from a provisional game profile and the game may not boot: {g.dir}')
@@ -38,7 +99,9 @@ diff --git a/scripts/build_ipa_from_nsp.py b/scripts/build_ipa_from_nsp.py
  
  def main(args=None):
      args = args or parse_args([])
-@@ -2560,8 +2577,9 @@
+     if args.separate_romfs and (args.platform or PLATFORM) != 'ios':
+@@ -2559,10 +2599,11 @@
+     if gfx == 'nvn': check_metal(py, repo, env)   # before the captures and the shader split, which take minutes
      for on, k in ((glslc, 'glslc_capture'), (vkcap, 'vk_capture'), (glcap, 'gl_capture'), (uedec, 'ue_decode'), (gfx == 'nvn' and src['oodle_packs'][0], 'oodle_packs'), (gfx == 'nvn' and src['ue_legacy'][0], 'ue_legacy')):
          if on: say(src[k][1])
      PROG.add(glslc + vkcap + glcap + uedec + (gfx == 'nvn'))
@@ -48,3 +111,4 @@ diff --git a/scripts/build_ipa_from_nsp.py b/scripts/build_ipa_from_nsp.py
      base = next((dirs[v] for v in versions if picks[v][1] is None), dirs[versions[0]])   # the folder the base game was extracted to alone
      # the app name and bundle ID both come from the base NSP: the game name in its control data, and a bundle ID from its title ID; a setting / the command line overrides them
      app_name = args.app_name or APP_NAME or nacp.name(base / 'control.nacp')
+     if not app_name and not (mac and not mac_pack): raise BuildError(f'no game name in the base extraction ({base / "control.nacp"}; an older extraction did not save it: delete extract/ and run again, or give --app-name)')
