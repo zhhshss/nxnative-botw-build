@@ -1,2 +1,3 @@
 * text=auto eol=lf
-*.patch -text
+# Space-only context lines are part of a unified diff.
+*.patch -text -whitespace

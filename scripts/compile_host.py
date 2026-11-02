@@ -64,6 +64,16 @@ def compile_host(stage, manifest_path, out, artifact, jobs):
             provenance.get('fork', {}).get('commit') != FORK_PIN or
             provenance.get('limitations', {}).get('game_data_included') is not False):
         raise ValueError('Unexpected source stage provenance')
+    render = provenance.get('render_pass_patch', {})
+    reviewed = read_json(Path(__file__).resolve().parents[1] / 'patches/touchwild-render-pass-20261101.json')
+    if (render.get('strict_replay_verified') is not True or
+            render.get('patch_sha256') != reviewed['patch_sha256'] or render.get('files') != reviewed['files']):
+        raise ValueError('Expected the reviewed render-pass backport')
+    for record in reviewed['files']:
+        if record['path'] in render['excluded_paths']:
+            continue
+        if sha256(stage / source_relative(record['path'])) != record['after_sha256']:
+            raise ValueError('Staged render-pass source differs: ' + record['path'])
     if not (stage / 'dm/ios/Sources/DmLauncher.m').is_file():
         raise ValueError('The source stage must include the fork Objective-C launcher')
     tools = read_json(manifest_path)
@@ -149,6 +159,7 @@ def compile_host(stage, manifest_path, out, artifact, jobs):
     build_report = {
         'schema_version': 1, 'status': 'compiled_host_objects_only',
         'touch_fork_commit': TOUCH_PIN, 'upstream_commit': UPSTREAM_PIN,
+        'render_pass_backport': render['upstream_changes'],
         'fork_commit': FORK_PIN, 'profile': GAME,
         'compiled_shader_chain': CHAIN_PIN, 'optimization': 'O1', 'cpu': 'apple-a16', 'ios_minimum': '26.0',
         'object_count': len(normalized), 'source_provenance_sha256': sha256(stage / 'provenance.json'),
