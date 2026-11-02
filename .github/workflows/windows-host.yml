@@ -11,10 +11,6 @@ on:
         description: 'Run current upstream validation without downloading or building the game'
         type: boolean
         default: false
-      picker_diagnostics:
-        description: 'Run additional iPad Files-picker diagnostics without game files'
-        type: boolean
-        default: false
       romfs:
         description: 'Data delivery: nxrom for independent reusable data and an app-only IPA'
         type: choice
@@ -42,9 +38,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  document-picker-checks:
-    if: ${{ inputs.picker_diagnostics == true }}
-    uses: ./.github/workflows/document-picker.yml
   apple-toolchain:
     if: ${{ inputs.probe_only == true }}
     runs-on: xcode-27
