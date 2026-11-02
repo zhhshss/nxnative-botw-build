@@ -75,17 +75,22 @@ def check(stage, output):
     runtimes = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'runtimes', '--json'], text=True))['runtimes']
     runtime = max((r for r in runtimes if r.get('isAvailable') and 'iOS' in r['name']), key=lambda r: tuple(map(int, r['version'].split('.'))))
     available = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json'], text=True))['devices'].get(runtime['identifier'], [])
-    existing = next((d for d in available if 'iPad' in d['name'] and d.get('deviceTypeIdentifier')), None)
-    if existing:
-        device = next(d for d in devices if d['identifier'] == existing['deviceTypeIdentifier'])
-    else:
-        compatible = {d['identifier'] for d in runtime.get('supportedDeviceTypes', [])}
-        candidates = [d for d in devices if 'iPad' in d['name'] and d['identifier'] in compatible]
-        if not candidates:
-            raise ValueError('No iPad simulator type supports the installed iOS runtime')
-        device = next((d for d in candidates if 'Pro' in d['name']), candidates[0])
-    identifier = subprocess.check_output(['xcrun', 'simctl', 'create', 'BOTWPicker-' + uuid.uuid4().hex[:10],
-                                          device['identifier'], runtime['identifier']], text=True).strip()
+    existing = {d['deviceTypeIdentifier'] for d in available if 'iPad' in d['name'] and d.get('deviceTypeIdentifier')}
+    candidates = [d for d in devices if 'iPad' in d['name']]
+    # simctl's JSON does not consistently report a runtime's supported types.
+    # Prefer existing compatible devices, then recent models, and let create
+    # validate compatibility instead of selecting the oldest generic iPad Pro.
+    candidates.sort(key=lambda d: (d['identifier'] in existing, d.get('minRuntimeVersion', 0)), reverse=True)
+    identifier = None
+    for device in candidates:
+        created = subprocess.run(['xcrun', 'simctl', 'create', 'BOTWPicker-' + uuid.uuid4().hex[:10],
+                                  device['identifier'], runtime['identifier']], capture_output=True, text=True)
+        if created.returncode == 0:
+            identifier = created.stdout.strip()
+            print('Picker device: ' + device['name'] + ', runtime ' + runtime['name'], flush=True)
+            break
+    if not identifier:
+        raise ValueError('No iPad simulator type supports the installed iOS runtime')
     try:
         run(['xcrun', 'simctl', 'boot', identifier])
         run(['xcrun', 'simctl', 'bootstatus', identifier, '-b'])
