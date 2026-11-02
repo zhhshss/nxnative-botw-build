@@ -1,0 +1,52 @@
+name: iPad document picker regression
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pickers:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: c671dd0b27f4ee4691d26e86dd7ad9de58c9f577
+          path: upstream
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: devinhurry/touch-the-wild
+          ref: e1b4196c589735c8b74cfe1f555167a6f380ae88
+          path: legacy
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: xbunax/nxnative
+          ref: d1ba3e97876da86ff616c6d8e8d684b968fb8c5d
+          path: fork
+          persist-credentials: false
+      - name: Prepare current source and test prerequisites
+        run: |
+          python3 scripts/prepare_touch_upstream.py --upstream upstream --legacy-source legacy --fork fork --output "$RUNNER_TEMP/stage" --lite
+          command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Production launcher Files-picker checks on iPad
+        run: python3 scripts/check_document_pickers.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/picker-tests"
+      - name: Upload picker evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: document-picker-tests
+          path: |
+            ${{ runner.temp }}/picker-tests/ui-tests.log
+            ${{ runner.temp }}/picker-tests/picker-tests.xcresult
+            ${{ runner.temp }}/picker-tests/attachments
+            ${{ runner.temp }}/picker-tests/picker-screen.png
+            ${{ runner.temp }}/picker-tests/picker-diagnostics.json
+          if-no-files-found: warn
+          retention-days: 7

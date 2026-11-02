@@ -129,6 +129,10 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_ipa_ci_stage.py -v
       - name: Host and real UIKit handler regressions without game files
         run: python3 scripts/check_touch_controls.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/touch-tests"
+      - name: iPad production launcher document-picker regression
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          python3 scripts/check_document_pickers.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/picker-tests"
       - name: Render backport compilation, concurrency and available GPU regressions
         run: python3 scripts/check_render_pass.py --stage "$RUNNER_TEMP/stage" --output "$RUNNER_TEMP/render-tests"
       - name: Reviewed render backport source and shader-cache compatibility
@@ -148,6 +152,11 @@ jobs:
         with:
           name: touch-and-aspect-tests
           path: |
+            ${{ runner.temp }}/picker-tests/ui-tests.log
+            ${{ runner.temp }}/picker-tests/picker-tests.xcresult
+            ${{ runner.temp }}/picker-tests/attachments
+            ${{ runner.temp }}/picker-tests/picker-screen.png
+            ${{ runner.temp }}/picker-tests/picker-diagnostics.json
             ${{ runner.temp }}/touch-tests/*.log
             ${{ runner.temp }}/touch-tests/report.json
             ${{ runner.temp }}/touch-tests/uikit/*.log
