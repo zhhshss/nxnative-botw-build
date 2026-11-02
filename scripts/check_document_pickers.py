@@ -72,9 +72,18 @@ def check(stage, output):
     (fixtures / 'Picker-Wrong.txt').write_text('not a resource package')
     run(['codesign', '--force', '--sign', '-', app])
     devices = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devicetypes', '--json'], text=True))['devicetypes']
-    device = next(d for d in reversed(devices) if 'iPad' in d['name'] and 'Pro' in d['name'])
     runtimes = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'runtimes', '--json'], text=True))['runtimes']
     runtime = max((r for r in runtimes if r.get('isAvailable') and 'iOS' in r['name']), key=lambda r: tuple(map(int, r['version'].split('.'))))
+    available = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json'], text=True))['devices'].get(runtime['identifier'], [])
+    existing = next((d for d in available if 'iPad' in d['name'] and d.get('deviceTypeIdentifier')), None)
+    if existing:
+        device = next(d for d in devices if d['identifier'] == existing['deviceTypeIdentifier'])
+    else:
+        compatible = {d['identifier'] for d in runtime.get('supportedDeviceTypes', [])}
+        candidates = [d for d in devices if 'iPad' in d['name'] and d['identifier'] in compatible]
+        if not candidates:
+            raise ValueError('No iPad simulator type supports the installed iOS runtime')
+        device = next((d for d in candidates if 'Pro' in d['name']), candidates[0])
     identifier = subprocess.check_output(['xcrun', 'simctl', 'create', 'BOTWPicker-' + uuid.uuid4().hex[:10],
                                           device['identifier'], runtime['identifier']], text=True).strip()
     try:
