@@ -6,6 +6,14 @@ The Touch the Wild integration adds native scene aspect correction, independent 
 
 ## Verified cloud build
 
+[Actions run 41344688605](https://github.com/zhhshss/nxnative-botw-build/actions/runs/41344688605) built the current Touch the Wild source successfully on 2026-11-01. Native input and UIKit checks, render/frame-generation compilation, source clocks, feedback ThreadSanitizer, legacy data import and graphics packaging passed. The delivered unsigned IPA is 41,456,369 bytes; its independent graphics ZIP is 2,212,361,936 bytes. Both passed authenticated pickup and integrity checks. The original 16,522,934,469-byte NXROM is unchanged. Actual app, graphics and data reuse was verified without requesting any artifact downloads. Physical iPad rendering and sustained frame rates remain untested.
+
+For the current shader chain, the cold IPA step took 2 h 11 m 52 s; the final cache-backed step took 14 m 23 s. The new encrypted cache was saved successfully. These measurements depend on unchanged shader inputs and an available compatible cache.
+
+Use `feat/upstream-framegen-graphics` for the next cached dispatch. The current cache belongs to that Actions branch; `fix/touch-harness-camera-probe` has the same implementation, but Actions does not share a sibling branch's cache automatically.
+
+Earlier build measurements follow for the previous shader chain:
+
 [Actions run 41262288572](https://github.com/zhhshss/nxnative-botw-build/actions/runs/41262288572) completed successfully on 2026-11-01: source regressions, Windows host/plugin compilation, native aspect/input and production UIKit handler tests, and the complete BOTW IPA build all passed. Restored shader outputs passed their native fingerprints; all 19,592 shader outputs were reused in 57 seconds. The IPA was built from the owner's base game, 1.9.0 update and both DLC containers. Physical iPad gameplay remains untested.
 
 | Measured duration | Cold run 41230668664 | Cache run 41262288572 |
@@ -35,11 +43,11 @@ The current touch source is pinned at `c671dd0b27f4`, with frame generation, liv
 
 The 2026-11-01 render backport carries Touch the Wild's guarded identical-target continuation and compression-eligible feedback snapshots. Its **Memory transfer optimization** setting defaults on and can restore the previous policy for a fresh-process comparison. Necessary feedback copies remain. The original shader chain and `.nxrom` identity are retained; sustained iPad FPS requires device comparison. The build records both upstream commit IDs and exact source hashes in `render_pass_patch` provenance.
 
-Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its default `nxrom` mode uses the original in-app importer: it writes an app-only `out/BOTW-iPad-Touch.ipa` and a separate `out/BOTW-iPad-Touch.nxrom` containing the game/update/DLC. The two outputs are published as independent authenticated artifacts, so fetching an app update does not fetch the large data package. `bundle` still builds a complete IPA, and `separate` is the manual RomFS-transfer mode. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
+Set the secrets documented in `.github/workflows/build-ipa.yml` and set the `BUILD_IPA` repository variable to `true`. `LEGACY_GAME_DATA_JSON` must contain the descriptor of the existing NXROM. Dispatch **Touch the Wild Windows host and controls** on the intended branch. Its default `separate` mode writes the small app-only `out/BOTW-iPad-Touch.ipa` and an independent `out/BOTW-iPad-Touch.graphics.v1.zip`; `nxrom` selects the same current packaging path. App and graphics are published as separate authenticated artifacts. Current builds reuse the existing NXROM rather than republishing game data. The existing `IPA_ZIP_PASSWORD` secret supplies the encryption password.
 
-Install the app IPA, open it and select its matching `.nxrom` once. The importer verifies and stores the data in the app's Documents directory. Later app builds with the same data SHA256 use the existing installation; settings or app-code changes do not require another data download. Install an update over the existing app with the same bundle identifier to preserve Documents. Game or DLC content changes produce a new data identity and require the matching package.
+Install the app IPA over the existing app with the same bundle identifier to preserve Documents. Select the new graphics ZIP through **Import shaders** once for this update. For the first installation using external data, select the existing `.nxrom` through **Import ROM** once. Already imported game-data and DLC directories remain usable. Later app builds with the same data identity and compatible graphics use the existing resources. Game/DLC content or graphics compatibility changes require their matching package. Frame generation is experimental, off by default and requires a supported GPU; on a 60 Hz display, the 30 FPS source setting with frame generation can target 60 displayed pictures.
 
-`publish_game_data=false` omits the separate data upload when only an app update is needed. The app still carries its required data descriptor. For an owner who already has a complete IPA, `scripts/split_game_data.py` can generate the original-format `.nxrom` and an import-ready app IPA locally; the executable, frameworks and shaders are preserved byte for byte.
+The current workflow does not publish another game-data artifact, including when `publish_game_data` is set; that input is retained for older dispatch compatibility. The app carries the existing data descriptor. For an owner who already has a complete IPA, `scripts/split_game_data.py` can generate the original-format `.nxrom` and an import-ready app IPA locally; the executable, frameworks and shaders are preserved byte for byte.
 
 The reviewed `--ipa-ci` stage releases downloaded container copies synchronously after all game and DLC extraction succeeds. Reclamation requires the explicit CI flag and the runner's `RUNNER_TEMP/nsp` folder. Compile products remain available throughout Xcode's build.
 
@@ -54,7 +62,7 @@ python3 scripts/fetch_ipa.py <successful-run-id> \
   --output-dir /path/to/downloads --password-file /path/to/ipa-password.txt
 ```
 
-For `nxrom` builds this defaults to `BOTW-iPad-Touch-App.ipa`. Add `--with-game-data` for the first pickup, optionally `--data-dir /path/to/large-disk`; the matching `BOTW-<version>-DLC.nxrom` is checked by SHA256 and reused if already present, including when that run publishes only an app. Subsequent pickups without this flag request only the app artifact. Repeated pickups of an identical existing app/data pair do not request another artifact download. A newer split app replaces the previous file only after authentication, SHA256 and IPA structure verification succeed; failed transfers preserve the previous app.
+Current split builds default to `BOTW-iPad-Touch-App.ipa`. Add `--with-graphics` for the first graphics pickup, optionally `--graphics-dir /path/to/large-disk`; an existing compatible graphics ZIP is verified and reused. `--with-game-data --data-dir /path/to/existing/data` verifies and reuses the existing `BOTW-<version>-DLC.nxrom`. It can download a missing NXROM only from an older run that published a data artifact. Subsequent pickups without either flag request only the app artifact. Identical existing app, graphics and data files do not request another artifact download. Replacement app/graphics files are authenticated and validated before replacing previous files.
 
 ```sh
 python3 scripts/split_game_data.py /path/to/complete.ipa \
